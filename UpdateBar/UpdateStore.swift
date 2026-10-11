@@ -162,6 +162,21 @@ final class UpdateStore {
                     actionMessages[id] = message
                 }
             }
+        case .sparkleInstall:
+            runningActions.insert(id)
+            Task {
+                let outcome = await SparkleInstaller.install(row.app) { [weak self] status in
+                    self?.actionMessages[id] = status
+                }
+                runningActions.remove(id)
+                switch outcome {
+                case .installed:
+                    actionMessages[id] = nil
+                    await checkNow()
+                case let .failure(message):
+                    actionMessages[id] = message
+                }
+            }
         case .openAppStore:
             NSWorkspace.shared.open(URL(string: "macappstore://apps.apple.com/updates")!)
         case .launchApp:
@@ -177,24 +192,38 @@ final class UpdateStore {
         }
     }
 
-    /// Runs every one-click Homebrew upgrade, one at a time so brew doesn't lock against itself.
-    func updateAllHomebrew() {
-        let brewRows = rows.filter { if case .brewUpgrade = $0.update.action { true } else { false } }
-        guard !brewRows.isEmpty else { return }
+    /// Runs every update that installs in place (Homebrew and Sparkle), one at a time
+    /// so brew doesn't lock against itself and installers don't compete.
+    func updateAllInPlace() {
+        let targets = rows.filter(\.installsInPlace)
+        guard !targets.isEmpty else { return }
         Task {
-            for row in brewRows {
-                guard case let .brewUpgrade(token) = row.update.action else { continue }
+            for row in targets {
                 runningActions.insert(row.id)
-                let outcome = await BrewRunner.upgrade(cask: token)
+                switch row.update.action {
+                case let .brewUpgrade(token):
+                    if case let .failure(message) = await BrewRunner.upgrade(cask: token) {
+                        actionMessages[row.id] = message
+                    }
+                case .sparkleInstall:
+                    let outcome = await SparkleInstaller.install(row.app) { [weak self] status in
+                        self?.actionMessages[row.id] = status
+                    }
+                    switch outcome {
+                    case .installed: actionMessages[row.id] = nil
+                    case let .failure(message): actionMessages[row.id] = message
+                    }
+                default:
+                    break
+                }
                 runningActions.remove(row.id)
-                if case let .failure(message) = outcome { actionMessages[row.id] = message }
             }
             await checkNow()
         }
     }
 
-    var homebrewUpgradeCount: Int {
-        rows.filter { if case .brewUpgrade = $0.update.action { true } else { false } }.count
+    var inPlaceUpdateCount: Int {
+        rows.filter(\.installsInPlace).count
     }
 
     // MARK: - Notifications
@@ -278,5 +307,15 @@ enum BrewRunner {
         let errorLine = output.split(separator: "\n").last { $0.localizedCaseInsensitiveContains("error") }
         return errorLine.map { String($0).trimmingCharacters(in: .whitespaces) }
             ?? "brew upgrade failed. Run `brew upgrade --cask \(token)` in Terminal to see why."
+    }
+}
+
+extension AppUpdate {
+    /// Whether UpdateBar can install this update itself, without opening anything.
+    var installsInPlace: Bool {
+        switch update.action {
+        case .brewUpgrade, .sparkleInstall: true
+        case .openAppStore, .launchApp, .openURL: false
+        }
     }
 }

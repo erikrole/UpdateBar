@@ -19,6 +19,8 @@
 		AB920BADF055526840251AA1 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 422767A185DF56A59314595D /* Models.swift */; };
 		B09EFA8CBF4DAC6BE63D0582 /* UpdateBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A524B9E8B2059D0E778E4F18 /* UpdateBarApp.swift */; };
 		B83DE0BB936F0A9447C76100 /* UpdateBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C74D674E6BED3502B6384FEC /* UpdateBarView.swift */; };
+		C4FBEE19D1F5D16ADE60CBFF /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = DB8225BE54B9D3C33C3FAFC8 /* Sparkle */; };
+		D7FB5B02346D5AA88FC3E556 /* SparkleInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17F08557CC0A48FFA69C5E67 /* SparkleInstaller.swift */; };
 		E4323703FF706CAF2AA431B8 /* HomebrewChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F0E409103E781AFF9B31C3F /* HomebrewChecker.swift */; };
 		F8D2F4DAECFB2715FDBC3DC8 /* GitHubChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE61661C3E0639E4013F054 /* GitHubChecker.swift */; };
 		F91A72F5E9BA11B33F53F0D7 /* VersionComparatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC283181845BE799B947F3CF /* VersionComparatorTests.swift */; };
@@ -36,6 +38,7 @@
 
 /* Begin PBXFileReference section */
 		00B3EC4EAA9A01CE1CD994A9 /* AppStoreChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoreChecker.swift; sourceTree = "<group>"; };
+		17F08557CC0A48FFA69C5E67 /* SparkleInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparkleInstaller.swift; sourceTree = "<group>"; };
 		1CDF14A00E54CBF62853A52C /* SparkleChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparkleChecker.swift; sourceTree = "<group>"; };
 		204CA6316A3FA202873EC64F /* UpdateBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = UpdateBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2263EA0DD4F1E26D1047BF59 /* CheckerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckerTests.swift; sourceTree = "<group>"; };
@@ -54,6 +57,17 @@
 		DC283181845BE799B947F3CF /* VersionComparatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionComparatorTests.swift; sourceTree = "<group>"; };
 		FDE61661C3E0639E4013F054 /* GitHubChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubChecker.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		BFE08AC6685A4F940B5C3800 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C4FBEE19D1F5D16ADE60CBFF /* Sparkle in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		717C48B8379FC10EB3F7495B /* Checkers */ = {
@@ -102,6 +116,7 @@
 				C42B5DD1E98B6862FADDF21A /* Info.plist */,
 				734BE46E1EBD1A2D47AB2781 /* LaunchAtLoginController.swift */,
 				422767A185DF56A59314595D /* Models.swift */,
+				17F08557CC0A48FFA69C5E67 /* SparkleInstaller.swift */,
 				A524B9E8B2059D0E778E4F18 /* UpdateBarApp.swift */,
 				C74D674E6BED3502B6384FEC /* UpdateBarView.swift */,
 				87CCCFF05642CF69E6AF4D7D /* UpdateResolver.swift */,
@@ -120,6 +135,7 @@
 			buildConfigurationList = 032B0AB86762BF374F8B9FA8 /* Build configuration list for PBXNativeTarget "UpdateBar" */;
 			buildPhases = (
 				D19E2EC50964F90B3F79E3EE /* Sources */,
+				BFE08AC6685A4F940B5C3800 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -127,6 +143,7 @@
 			);
 			name = UpdateBar;
 			packageProductDependencies = (
+				DB8225BE54B9D3C33C3FAFC8 /* Sparkle */,
 			);
 			productName = UpdateBar;
 			productReference = 204CA6316A3FA202873EC64F /* UpdateBar.app */;
@@ -177,6 +194,9 @@
 			);
 			mainGroup = 8A3D962A15BD37B62C295FD6;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				788D99A1BD9A08C06A1E723E /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 93BC4A799B03CA1327B96D80 /* Products */;
 			projectDirPath = "";
@@ -209,6 +229,7 @@
 				868E1AED293E6AB1424EFC2C /* LaunchAtLoginController.swift in Sources */,
 				AB920BADF055526840251AA1 /* Models.swift in Sources */,
 				502EC85786F01CBC8C60DE03 /* SparkleChecker.swift in Sources */,
+				D7FB5B02346D5AA88FC3E556 /* SparkleInstaller.swift in Sources */,
 				B09EFA8CBF4DAC6BE63D0582 /* UpdateBarApp.swift in Sources */,
 				B83DE0BB936F0A9447C76100 /* UpdateBarView.swift in Sources */,
 				0FD505553CA2C6FA280644E6 /* UpdateChecker.swift in Sources */,
@@ -469,6 +490,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		788D99A1BD9A08C06A1E723E /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = exactVersion;
+				version = 2.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		DB8225BE54B9D3C33C3FAFC8 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 788D99A1BD9A08C06A1E723E /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 66883DC5EB86E7D57189F6BC /* Project object */;
 }

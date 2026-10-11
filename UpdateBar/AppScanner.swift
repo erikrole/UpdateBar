@@ -77,7 +77,8 @@ struct AppScanner: Sendable {
             shortVersion: stringValue(plist["CFBundleShortVersionString"]),
             buildVersion: stringValue(plist["CFBundleVersion"]),
             sparkleFeedURL: feed,
-            hasAppStoreReceipt: hasReceipt
+            hasAppStoreReceipt: hasReceipt,
+            hasSparkleEDKey: (plist["SUPublicEDKey"] as? String)?.isEmpty == false
         )
     }
 

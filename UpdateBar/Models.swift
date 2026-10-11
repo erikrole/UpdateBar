@@ -11,6 +11,9 @@ struct InstalledApp: Identifiable, Hashable, Sendable {
     let buildVersion: String?
     let sparkleFeedURL: URL?
     let hasAppStoreReceipt: Bool
+    /// Whether the app ships a Sparkle EdDSA key, which in-place installs require so
+    /// every download is verified against the developer's own signature.
+    var hasSparkleEDKey = false
 
     var id: String { bundleIdentifier }
 
@@ -63,6 +66,8 @@ enum UpdateAction: Hashable, Sendable {
     case brewUpgrade(token: String)
     /// Open the App Store's Updates page.
     case openAppStore
+    /// Download, verify and install through Sparkle without opening the app.
+    case sparkleInstall
     /// Launch the app so its own updater takes over.
     case launchApp
     /// Open a download or release page in the browser.

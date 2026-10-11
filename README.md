@@ -17,8 +17,11 @@ is used.
   aren't flagged the way `brew outdated --greedy` flags them.
 - Shows release notes inline, and lets you skip a version or ignore an app.
 - One-click updates: `brew upgrade --cask` for Homebrew installs (as you, never
-  with admin rights), opening the app for Sparkle apps so they update themselves,
-  and the App Store's Updates page for store apps.
+  with admin rights), in-place installs for Sparkle apps that sign their updates
+  (via the embedded [Sparkle](https://sparkle-project.org) framework, verified
+  against each app's own EdDSA key; the app quits and reopens if it was running),
+  and the App Store's Updates page for store apps. "Update all" runs every
+  in-place update one after another.
 
 Out of scope on purpose: a root install helper and Apple's private App Store
 frameworks. Feeds that only work over plain HTTP are reported, not trusted.
@@ -38,6 +41,7 @@ quickest way to debug a wrong result:
 
 ```sh
 UpdateBar.app/Contents/MacOS/UpdateBar --report
+UpdateBar.app/Contents/MacOS/UpdateBar --install <bundle ID>   # installs one pending update, then exits
 ```
 
 The Homebrew cask index (~20 MB) is cached at

@@ -22,6 +22,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         guard ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil else { return }
+        if let index = CommandLine.arguments.firstIndex(of: "--install"),
+           CommandLine.arguments.indices.contains(index + 1) {
+            let bundleIdentifier = CommandLine.arguments[index + 1]
+            Task { await installAndExit(bundleIdentifier) }
+            return
+        }
         if CommandLine.arguments.contains("--report") {
             Task { await printReportAndExit() }
             return
@@ -114,6 +120,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         print(lines.joined(separator: "\n"))
         exit(0)
+    }
+
+    /// `UpdateBar --install <bundle ID>` checks, installs that app's pending update the
+    /// way the Update button would (Sparkle or Homebrew only), prints the outcome and exits.
+    private func installAndExit(_ bundleIdentifier: String) async {
+        await store.checkNow()
+        guard let row = store.rows.first(where: { $0.app.bundleIdentifier == bundleIdentifier }) else {
+            print("No pending update for \(bundleIdentifier)")
+            exit(1)
+        }
+        let outcome: String
+        switch row.update.action {
+        case .sparkleInstall:
+            switch await SparkleInstaller.install(row.app, progress: { print("  \($0)") }) {
+            case .installed: outcome = "INSTALLED \(row.app.name) \(row.update.version)"
+            case let .failure(message): outcome = "FAILED \(message)"
+            }
+        case let .brewUpgrade(token):
+            switch await BrewRunner.upgrade(cask: token) {
+            case .success: outcome = "INSTALLED \(row.app.name) \(row.update.version)"
+            case let .failure(message): outcome = "FAILED \(message)"
+            }
+        default:
+            outcome = "\(row.app.name) doesn't install in place"
+        }
+        print(outcome)
+        exit(outcome.hasPrefix("INSTALLED") ? 0 : 1)
     }
 
     @objc private func togglePopover(_ sender: Any?) {

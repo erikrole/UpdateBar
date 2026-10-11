@@ -87,7 +87,7 @@ struct SparkleChecker: UpdateChecker {
             releaseNotes: item.notes?.plainTextFromHTML.nilIfEmpty,
             releaseNotesURL: item.releaseNotesURL,
             downloadURL: item.downloadURL,
-            action: .launchApp
+            action: app.hasSparkleEDKey ? .sparkleInstall : .launchApp
         )
     }
 }

@@ -8,7 +8,8 @@ private func app(
     short: String?,
     build: String? = nil,
     feed: String? = nil,
-    receipt: Bool = false
+    receipt: Bool = false,
+    edKey: Bool = false
 ) -> InstalledApp {
     let name = name ?? id.components(separatedBy: ".").last!
     return InstalledApp(
@@ -18,7 +19,8 @@ private func app(
         shortVersion: short,
         buildVersion: build,
         sparkleFeedURL: feed.flatMap(URL.init(string:)),
-        hasAppStoreReceipt: receipt
+        hasAppStoreReceipt: receipt,
+        hasSparkleEDKey: edKey
     )
 }
 
@@ -74,6 +76,14 @@ final class SparkleTests: XCTestCase {
         let update = try XCTUnwrap(SparkleChecker.update(for: app("com.x.App", short: "2.0", build: "200"), item: best))
         XCTAssertEqual(update.version, "2.1")
         XCTAssertEqual(update.releaseNotes, "• Faster sync\n• Fixes & polish")
+    }
+
+    func testInPlaceInstallOnlyWithEdDSAKey() throws {
+        let item = AppcastItem(version: "210", shortVersion: "2.1")
+        let signed = try XCTUnwrap(SparkleChecker.update(for: app("com.x.App", short: "2.0", build: "200", edKey: true), item: item))
+        XCTAssertEqual(signed.action, .sparkleInstall)
+        let unsigned = try XCTUnwrap(SparkleChecker.update(for: app("com.x.App", short: "2.0", build: "200"), item: item))
+        XCTAssertEqual(unsigned.action, .launchApp)
     }
 
     func testCurrentAppIsNotFlagged() throws {
@@ -236,6 +246,9 @@ final class ScannerTests: XCTestCase {
             hasReceipt: false
         ))
         XCTAssertEqual(made.buildVersion, "1348")
+        XCTAssertFalse(made.hasSparkleEDKey)
+        let keyed = AppScanner.makeApp(url: URL(filePath: "/x.app"), plist: ["CFBundleIdentifier": "a", "SUPublicEDKey": "abc="], hasReceipt: false)
+        XCTAssertEqual(keyed?.hasSparkleEDKey, true)
         XCTAssertEqual(made.sparkleFeedURL?.host(), "max.codes")
         XCTAssertNil(AppScanner.makeApp(url: URL(filePath: "/x.app"), plist: [:], hasReceipt: false))
         let ftp = AppScanner.makeApp(url: URL(filePath: "/x.app"), plist: ["CFBundleIdentifier": "a", "SUFeedURL": "ftp://x"], hasReceipt: false)

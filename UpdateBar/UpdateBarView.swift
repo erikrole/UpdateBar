@@ -74,9 +74,9 @@ struct UpdateBarView: View {
 
     private var footer: some View {
         HStack {
-            if store.homebrewUpgradeCount > 1 && !showingSettings {
-                Button("Update all Homebrew (\(store.homebrewUpgradeCount))") {
-                    store.updateAllHomebrew()
+            if store.inPlaceUpdateCount > 1 && !showingSettings {
+                Button("Update all (\(store.inPlaceUpdateCount))") {
+                    store.updateAllInPlace()
                 }
                 .controlSize(.small)
             }
@@ -220,7 +220,7 @@ private struct UpdateRow: View {
 
     private var actionTitle: String {
         switch row.update.action {
-        case .brewUpgrade: "Update"
+        case .brewUpgrade, .sparkleInstall: "Update"
         case .openAppStore: "App Store"
         case .launchApp: "Open"
         case .openURL: "Download"
