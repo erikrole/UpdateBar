@@ -1,0 +1,474 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0FD505553CA2C6FA280644E6 /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 408036FC8E91C9B0B1EE2FBF /* UpdateChecker.swift */; };
+		34023FB975D1FBF5F02C4E24 /* AppStoreChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00B3EC4EAA9A01CE1CD994A9 /* AppStoreChecker.swift */; };
+		3846A1B5E9B10F72E503502E /* UpdateResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87CCCFF05642CF69E6AF4D7D /* UpdateResolver.swift */; };
+		43E0BD1B31F80358AC0724E7 /* VersionComparator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD8D272453B3FE46C34D2899 /* VersionComparator.swift */; };
+		502EC85786F01CBC8C60DE03 /* SparkleChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CDF14A00E54CBF62853A52C /* SparkleChecker.swift */; };
+		5269B7A5C5ADEF9370E4BD1D /* CheckerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2263EA0DD4F1E26D1047BF59 /* CheckerTests.swift */; };
+		7713F5C1C6698DE268AB7D74 /* AppScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5490F5D1A4740AD7E4C9F5 /* AppScanner.swift */; };
+		7D45898A07738FCB87203CFA /* UpdateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F9FB943E6B1097D9891CC29 /* UpdateStore.swift */; };
+		868E1AED293E6AB1424EFC2C /* LaunchAtLoginController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 734BE46E1EBD1A2D47AB2781 /* LaunchAtLoginController.swift */; };
+		AB920BADF055526840251AA1 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 422767A185DF56A59314595D /* Models.swift */; };
+		B09EFA8CBF4DAC6BE63D0582 /* UpdateBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A524B9E8B2059D0E778E4F18 /* UpdateBarApp.swift */; };
+		B83DE0BB936F0A9447C76100 /* UpdateBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C74D674E6BED3502B6384FEC /* UpdateBarView.swift */; };
+		E4323703FF706CAF2AA431B8 /* HomebrewChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F0E409103E781AFF9B31C3F /* HomebrewChecker.swift */; };
+		F8D2F4DAECFB2715FDBC3DC8 /* GitHubChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE61661C3E0639E4013F054 /* GitHubChecker.swift */; };
+		F91A72F5E9BA11B33F53F0D7 /* VersionComparatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC283181845BE799B947F3CF /* VersionComparatorTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		68D460B39C7672DF78A168C7 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 66883DC5EB86E7D57189F6BC /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B9FCF541B5E9DA9419CECDAB;
+			remoteInfo = UpdateBar;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		00B3EC4EAA9A01CE1CD994A9 /* AppStoreChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStoreChecker.swift; sourceTree = "<group>"; };
+		1CDF14A00E54CBF62853A52C /* SparkleChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparkleChecker.swift; sourceTree = "<group>"; };
+		204CA6316A3FA202873EC64F /* UpdateBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = UpdateBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2263EA0DD4F1E26D1047BF59 /* CheckerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckerTests.swift; sourceTree = "<group>"; };
+		408036FC8E91C9B0B1EE2FBF /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
+		422767A185DF56A59314595D /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		70006C32ECA724A4FDFB3524 /* UpdateBarTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UpdateBarTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		734BE46E1EBD1A2D47AB2781 /* LaunchAtLoginController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginController.swift; sourceTree = "<group>"; };
+		7F9FB943E6B1097D9891CC29 /* UpdateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateStore.swift; sourceTree = "<group>"; };
+		87CCCFF05642CF69E6AF4D7D /* UpdateResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateResolver.swift; sourceTree = "<group>"; };
+		9F0E409103E781AFF9B31C3F /* HomebrewChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomebrewChecker.swift; sourceTree = "<group>"; };
+		A524B9E8B2059D0E778E4F18 /* UpdateBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateBarApp.swift; sourceTree = "<group>"; };
+		AC5490F5D1A4740AD7E4C9F5 /* AppScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppScanner.swift; sourceTree = "<group>"; };
+		BD8D272453B3FE46C34D2899 /* VersionComparator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionComparator.swift; sourceTree = "<group>"; };
+		C42B5DD1E98B6862FADDF21A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		C74D674E6BED3502B6384FEC /* UpdateBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateBarView.swift; sourceTree = "<group>"; };
+		DC283181845BE799B947F3CF /* VersionComparatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionComparatorTests.swift; sourceTree = "<group>"; };
+		FDE61661C3E0639E4013F054 /* GitHubChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubChecker.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		717C48B8379FC10EB3F7495B /* Checkers */ = {
+			isa = PBXGroup;
+			children = (
+				00B3EC4EAA9A01CE1CD994A9 /* AppStoreChecker.swift */,
+				FDE61661C3E0639E4013F054 /* GitHubChecker.swift */,
+				9F0E409103E781AFF9B31C3F /* HomebrewChecker.swift */,
+				1CDF14A00E54CBF62853A52C /* SparkleChecker.swift */,
+				408036FC8E91C9B0B1EE2FBF /* UpdateChecker.swift */,
+			);
+			path = Checkers;
+			sourceTree = "<group>";
+		};
+		8A3D962A15BD37B62C295FD6 = {
+			isa = PBXGroup;
+			children = (
+				DCC5881DD2F084D43D2024C3 /* UpdateBar */,
+				D02E1BE9B2CAB99088BCCDED /* UpdateBarTests */,
+				93BC4A799B03CA1327B96D80 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		93BC4A799B03CA1327B96D80 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				204CA6316A3FA202873EC64F /* UpdateBar.app */,
+				70006C32ECA724A4FDFB3524 /* UpdateBarTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D02E1BE9B2CAB99088BCCDED /* UpdateBarTests */ = {
+			isa = PBXGroup;
+			children = (
+				2263EA0DD4F1E26D1047BF59 /* CheckerTests.swift */,
+				DC283181845BE799B947F3CF /* VersionComparatorTests.swift */,
+			);
+			path = UpdateBarTests;
+			sourceTree = "<group>";
+		};
+		DCC5881DD2F084D43D2024C3 /* UpdateBar */ = {
+			isa = PBXGroup;
+			children = (
+				AC5490F5D1A4740AD7E4C9F5 /* AppScanner.swift */,
+				C42B5DD1E98B6862FADDF21A /* Info.plist */,
+				734BE46E1EBD1A2D47AB2781 /* LaunchAtLoginController.swift */,
+				422767A185DF56A59314595D /* Models.swift */,
+				A524B9E8B2059D0E778E4F18 /* UpdateBarApp.swift */,
+				C74D674E6BED3502B6384FEC /* UpdateBarView.swift */,
+				87CCCFF05642CF69E6AF4D7D /* UpdateResolver.swift */,
+				7F9FB943E6B1097D9891CC29 /* UpdateStore.swift */,
+				BD8D272453B3FE46C34D2899 /* VersionComparator.swift */,
+				717C48B8379FC10EB3F7495B /* Checkers */,
+			);
+			path = UpdateBar;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		B9FCF541B5E9DA9419CECDAB /* UpdateBar */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 032B0AB86762BF374F8B9FA8 /* Build configuration list for PBXNativeTarget "UpdateBar" */;
+			buildPhases = (
+				D19E2EC50964F90B3F79E3EE /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = UpdateBar;
+			packageProductDependencies = (
+			);
+			productName = UpdateBar;
+			productReference = 204CA6316A3FA202873EC64F /* UpdateBar.app */;
+			productType = "com.apple.product-type.application";
+		};
+		EE4AD7AA8BF9077B69938154 /* UpdateBarTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E5A8ED71334DBDBC76019EC6 /* Build configuration list for PBXNativeTarget "UpdateBarTests" */;
+			buildPhases = (
+				77D24C55CA57A47207E4FA49 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3858A1D8501FC30D320AB155 /* PBXTargetDependency */,
+			);
+			name = UpdateBarTests;
+			packageProductDependencies = (
+			);
+			productName = UpdateBarTests;
+			productReference = 70006C32ECA724A4FDFB3524 /* UpdateBarTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		66883DC5EB86E7D57189F6BC /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					B9FCF541B5E9DA9419CECDAB = {
+						DevelopmentTeam = T26T3G8C7Q;
+					};
+					EE4AD7AA8BF9077B69938154 = {
+						DevelopmentTeam = T26T3G8C7Q;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 0588A3D60C829B38F8A591ED /* Build configuration list for PBXProject "UpdateBar" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 8A3D962A15BD37B62C295FD6;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 93BC4A799B03CA1327B96D80 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				B9FCF541B5E9DA9419CECDAB /* UpdateBar */,
+				EE4AD7AA8BF9077B69938154 /* UpdateBarTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		77D24C55CA57A47207E4FA49 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5269B7A5C5ADEF9370E4BD1D /* CheckerTests.swift in Sources */,
+				F91A72F5E9BA11B33F53F0D7 /* VersionComparatorTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D19E2EC50964F90B3F79E3EE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7713F5C1C6698DE268AB7D74 /* AppScanner.swift in Sources */,
+				34023FB975D1FBF5F02C4E24 /* AppStoreChecker.swift in Sources */,
+				F8D2F4DAECFB2715FDBC3DC8 /* GitHubChecker.swift in Sources */,
+				E4323703FF706CAF2AA431B8 /* HomebrewChecker.swift in Sources */,
+				868E1AED293E6AB1424EFC2C /* LaunchAtLoginController.swift in Sources */,
+				AB920BADF055526840251AA1 /* Models.swift in Sources */,
+				502EC85786F01CBC8C60DE03 /* SparkleChecker.swift in Sources */,
+				B09EFA8CBF4DAC6BE63D0582 /* UpdateBarApp.swift in Sources */,
+				B83DE0BB936F0A9447C76100 /* UpdateBarView.swift in Sources */,
+				0FD505553CA2C6FA280644E6 /* UpdateChecker.swift in Sources */,
+				3846A1B5E9B10F72E503502E /* UpdateResolver.swift in Sources */,
+				7D45898A07738FCB87203CFA /* UpdateStore.swift in Sources */,
+				43E0BD1B31F80358AC0724E7 /* VersionComparator.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		3858A1D8501FC30D320AB155 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B9FCF541B5E9DA9419CECDAB /* UpdateBar */;
+			targetProxy = 68D460B39C7672DF78A168C7 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0F1B8C1A040A57E26930DC26 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = UpdateBar/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.erole.UpdateBar;
+				PRODUCT_NAME = UpdateBar;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		1EE9251F78D20001EF6B8E6E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		5218586F636EBE3CF0C3A413 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.erole.UpdateBarTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/UpdateBar.app/Contents/MacOS/UpdateBar";
+			};
+			name = Debug;
+		};
+		58091F96C55A3CF0D4C0A64F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.erole.UpdateBarTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/UpdateBar.app/Contents/MacOS/UpdateBar";
+			};
+			name = Release;
+		};
+		7D8E8E62C59544218154855A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		9B5F4AFF923D6AF89F49547D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				CODE_SIGN_IDENTITY = "Developer ID Application";
+				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = UpdateBar/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.erole.UpdateBar;
+				PRODUCT_NAME = UpdateBar;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		032B0AB86762BF374F8B9FA8 /* Build configuration list for PBXNativeTarget "UpdateBar" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0F1B8C1A040A57E26930DC26 /* Debug */,
+				9B5F4AFF923D6AF89F49547D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		0588A3D60C829B38F8A591ED /* Build configuration list for PBXProject "UpdateBar" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7D8E8E62C59544218154855A /* Debug */,
+				1EE9251F78D20001EF6B8E6E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E5A8ED71334DBDBC76019EC6 /* Build configuration list for PBXNativeTarget "UpdateBarTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5218586F636EBE3CF0C3A413 /* Debug */,
+				58091F96C55A3CF0D4C0A64F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 66883DC5EB86E7D57189F6BC /* Project object */;
+}
