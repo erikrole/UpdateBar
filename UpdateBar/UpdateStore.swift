@@ -243,7 +243,9 @@ enum BrewRunner {
 
     static func upgrade(cask token: String) async -> Outcome {
         guard let brewPath else { return .failure("Homebrew isn't installed in the usual place.") }
-        return await withCheckedContinuation { continuation in
+        // Read output while brew runs: waiting for exit first would deadlock once a
+        // verbose upgrade fills the pipe buffer.
+        return await Task.detached(priority: .userInitiated) { () -> Outcome in
             let process = Process()
             process.executableURL = URL(filePath: brewPath)
             process.arguments = ["upgrade", "--cask", token]
@@ -256,21 +258,16 @@ enum BrewRunner {
             process.standardOutput = output
             process.standardError = output
             process.standardInput = FileHandle.nullDevice
-            process.terminationHandler = { process in
-                let data = output.fileHandleForReading.readDataToEndOfFile()
-                let text = String(decoding: data, as: UTF8.self)
-                if process.terminationStatus == 0 {
-                    continuation.resume(returning: .success)
-                } else {
-                    continuation.resume(returning: .failure(summary(of: text, token: token)))
-                }
-            }
             do {
                 try process.run()
             } catch {
-                continuation.resume(returning: .failure(error.localizedDescription))
+                return .failure(error.localizedDescription)
             }
-        }
+            let data = output.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            if process.terminationStatus == 0 { return .success }
+            return .failure(summary(of: String(decoding: data, as: UTF8.self), token: token))
+        }.value
     }
 
     /// Picks the line that explains a failure, and says what to do when brew needs a password.
