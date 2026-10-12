@@ -10,6 +10,10 @@ final class UpdateStore {
     private(set) var rows: [AppUpdate] = []
     /// Outdated Homebrew formulae, requested ones first.
     private(set) var tools: [ToolUpdate] = []
+    /// The brew run in progress for tools, if any.
+    private(set) var toolRun: BrewRunProgress?
+    /// A short result line shown after a tools run, e.g. "Upgraded 14 tools".
+    private(set) var toolNotice: String?
     private(set) var failures: [CheckFailure] = []
     private(set) var appCount = 0
     private(set) var lastChecked: Date?
@@ -204,8 +208,14 @@ final class UpdateStore {
         switch row.update.action {
         case let .brewUpgrade(token):
             runningActions.insert(id)
+            actionMessages[id] = "Starting brew…"
             Task {
-                let outcome = await BrewRunner.upgrade(cask: token)
+                let outcome = await BrewRunner.upgrade(cask: token) { [weak self] event in
+                    Task { @MainActor in
+                        guard event.stage != .done else { return }
+                        self?.actionMessages[id] = "\(event.stage.label)…"
+                    }
+                }
                 runningActions.remove(id)
                 switch outcome {
                 case .success:
@@ -313,15 +323,37 @@ final class UpdateStore {
     }
 
     private func upgradeTools(_ names: [String], actionID: String) {
-        guard !names.isEmpty, runningActions.isDisjoint(with: [actionID, Self.allToolsID]) else { return }
+        guard !names.isEmpty, toolRun == nil else { return }
         actionMessages[actionID] = nil
+        toolNotice = nil
         runningActions.insert(actionID)
+        toolRun = BrewRunProgress(names: names)
         Task {
-            let outcome = await BrewRunner.upgrade(formulae: names)
+            let outcome = await BrewRunner.upgrade(formulae: names) { [weak self] event in
+                Task { @MainActor in self?.toolRun?.apply(event) }
+            }
             runningActions.remove(actionID)
-            if case let .failure(message) = outcome { actionMessages[actionID] = message }
+            let finished = toolRun?.finished ?? 0
+            toolRun = nil
+            switch outcome {
+            case .success:
+                let notice = names.count == 1 ? "Upgraded \(names[0])" : "Upgraded \(names.count) tools"
+                toolNotice = notice
+                Task {
+                    try? await Task.sleep(for: .seconds(30))
+                    if toolNotice == notice { toolNotice = nil }
+                }
+            case let .failure(message):
+                actionMessages[actionID] = message
+                if finished > 0 { toolNotice = "Upgraded \(finished) of \(names.count) before brew stopped" }
+            }
             await checkNow()
         }
+    }
+
+    /// The stage of one tool while an upgrade is running, if it's part of it.
+    func stage(of tool: ToolUpdate) -> BrewStage? {
+        toolRun?.stages[tool.name]
     }
 
     // MARK: - Notifications
@@ -376,18 +408,22 @@ enum BrewRunner {
         ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"].first { FileManager.default.isExecutableFile(atPath: $0) }
     }
 
-    static func upgrade(cask token: String) async -> Outcome {
-        await run(["upgrade", "--cask", token], retryHint: "brew upgrade --cask \(token)")
+    static func upgrade(cask token: String, onEvent: (@Sendable (BrewOutputParser.Event) -> Void)? = nil) async -> Outcome {
+        await run(["upgrade", "--cask", token], retryHint: "brew upgrade --cask \(token)", onEvent: onEvent)
     }
 
-    static func upgrade(formulae names: [String]) async -> Outcome {
-        await run(["upgrade", "--formula"] + names, retryHint: "brew upgrade --formula \(names.joined(separator: " "))")
+    static func upgrade(formulae names: [String], onEvent: (@Sendable (BrewOutputParser.Event) -> Void)? = nil) async -> Outcome {
+        await run(["upgrade", "--formula"] + names, retryHint: "brew upgrade --formula \(names.joined(separator: " "))", onEvent: onEvent)
     }
 
-    private static func run(_ arguments: [String], retryHint: String) async -> Outcome {
+    private static func run(
+        _ arguments: [String],
+        retryHint: String,
+        onEvent: (@Sendable (BrewOutputParser.Event) -> Void)?
+    ) async -> Outcome {
         guard let brewPath else { return .failure("Homebrew isn't installed in the usual place.") }
-        // Read output while brew runs: waiting for exit first would deadlock once a
-        // verbose upgrade fills the pipe buffer.
+        // Output is read line by line while brew runs: it drives the progress display,
+        // and waiting for exit first would deadlock once a verbose upgrade fills the pipe.
         return await Task.detached(priority: .userInitiated) { () -> Outcome in
             let process = Process()
             process.executableURL = URL(filePath: brewPath)
@@ -395,6 +431,8 @@ enum BrewRunner {
             var environment = ProcessInfo.processInfo.environment
             environment["NONINTERACTIVE"] = "1"
             environment["HOMEBREW_NO_ENV_HINTS"] = "1"
+            environment["HOMEBREW_NO_COLOR"] = "1"
+            environment["HOMEBREW_NO_EMOJI"] = "1"
             environment["PATH"] = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
             process.environment = environment
             let output = Pipe()
@@ -406,10 +444,24 @@ enum BrewRunner {
             } catch {
                 return .failure(error.localizedDescription)
             }
-            let data = output.fileHandleForReading.readDataToEndOfFile()
+
+            var transcript = Data()
+            var pending = Data()
+            let handle = output.fileHandleForReading
+            while true {
+                let chunk = handle.availableData
+                if chunk.isEmpty { break }
+                transcript.append(chunk)
+                pending.append(chunk)
+                while let newline = pending.firstIndex(of: UInt8(ascii: "\n")) {
+                    let line = String(decoding: pending[pending.startIndex..<newline], as: UTF8.self)
+                    pending.removeSubrange(pending.startIndex...newline)
+                    if let onEvent, let event = BrewOutputParser.event(for: line) { onEvent(event) }
+                }
+            }
             process.waitUntilExit()
             if process.terminationStatus == 0 { return .success }
-            return .failure(summary(of: String(decoding: data, as: UTF8.self), command: retryHint))
+            return .failure(summary(of: String(decoding: transcript, as: UTF8.self), command: retryHint))
         }.value
     }
 

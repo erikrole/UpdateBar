@@ -11,8 +11,10 @@
 		34023FB975D1FBF5F02C4E24 /* AppStoreChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00B3EC4EAA9A01CE1CD994A9 /* AppStoreChecker.swift */; };
 		3846A1B5E9B10F72E503502E /* UpdateResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87CCCFF05642CF69E6AF4D7D /* UpdateResolver.swift */; };
 		43E0BD1B31F80358AC0724E7 /* VersionComparator.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD8D272453B3FE46C34D2899 /* VersionComparator.swift */; };
+		45C7C2928EEAF34541769588 /* BrewProgressTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64A96FB79FC2626CFE5783B8 /* BrewProgressTests.swift */; };
 		502EC85786F01CBC8C60DE03 /* SparkleChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CDF14A00E54CBF62853A52C /* SparkleChecker.swift */; };
 		5269B7A5C5ADEF9370E4BD1D /* CheckerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2263EA0DD4F1E26D1047BF59 /* CheckerTests.swift */; };
+		658CA0C00845D7D8F13E834A /* BrewProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8529FB7C8EE54F21E4A1F432 /* BrewProgress.swift */; };
 		7713F5C1C6698DE268AB7D74 /* AppScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5490F5D1A4740AD7E4C9F5 /* AppScanner.swift */; };
 		7D45898A07738FCB87203CFA /* UpdateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F9FB943E6B1097D9891CC29 /* UpdateStore.swift */; };
 		82552BD5B21F5C03EBC3F02F /* FormulaChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EE2514B9F5ED815B8D6C97B /* FormulaChecker.swift */; };
@@ -48,9 +50,11 @@
 		408036FC8E91C9B0B1EE2FBF /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
 		422767A185DF56A59314595D /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		5EE2514B9F5ED815B8D6C97B /* FormulaChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormulaChecker.swift; sourceTree = "<group>"; };
+		64A96FB79FC2626CFE5783B8 /* BrewProgressTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrewProgressTests.swift; sourceTree = "<group>"; };
 		70006C32ECA724A4FDFB3524 /* UpdateBarTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UpdateBarTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		734BE46E1EBD1A2D47AB2781 /* LaunchAtLoginController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginController.swift; sourceTree = "<group>"; };
 		7F9FB943E6B1097D9891CC29 /* UpdateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateStore.swift; sourceTree = "<group>"; };
+		8529FB7C8EE54F21E4A1F432 /* BrewProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrewProgress.swift; sourceTree = "<group>"; };
 		87CCCFF05642CF69E6AF4D7D /* UpdateResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateResolver.swift; sourceTree = "<group>"; };
 		9F0E409103E781AFF9B31C3F /* HomebrewChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomebrewChecker.swift; sourceTree = "<group>"; };
 		A524B9E8B2059D0E778E4F18 /* UpdateBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateBarApp.swift; sourceTree = "<group>"; };
@@ -109,6 +113,7 @@
 		D02E1BE9B2CAB99088BCCDED /* UpdateBarTests */ = {
 			isa = PBXGroup;
 			children = (
+				64A96FB79FC2626CFE5783B8 /* BrewProgressTests.swift */,
 				2263EA0DD4F1E26D1047BF59 /* CheckerTests.swift */,
 				DC283181845BE799B947F3CF /* VersionComparatorTests.swift */,
 			);
@@ -119,6 +124,7 @@
 			isa = PBXGroup;
 			children = (
 				AC5490F5D1A4740AD7E4C9F5 /* AppScanner.swift */,
+				8529FB7C8EE54F21E4A1F432 /* BrewProgress.swift */,
 				C42B5DD1E98B6862FADDF21A /* Info.plist */,
 				734BE46E1EBD1A2D47AB2781 /* LaunchAtLoginController.swift */,
 				422767A185DF56A59314595D /* Models.swift */,
@@ -219,6 +225,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				45C7C2928EEAF34541769588 /* BrewProgressTests.swift in Sources */,
 				5269B7A5C5ADEF9370E4BD1D /* CheckerTests.swift in Sources */,
 				F91A72F5E9BA11B33F53F0D7 /* VersionComparatorTests.swift in Sources */,
 			);
@@ -230,6 +237,7 @@
 			files = (
 				7713F5C1C6698DE268AB7D74 /* AppScanner.swift in Sources */,
 				34023FB975D1FBF5F02C4E24 /* AppStoreChecker.swift in Sources */,
+				658CA0C00845D7D8F13E834A /* BrewProgress.swift in Sources */,
 				82552BD5B21F5C03EBC3F02F /* FormulaChecker.swift in Sources */,
 				F8D2F4DAECFB2715FDBC3DC8 /* GitHubChecker.swift in Sources */,
 				E4323703FF706CAF2AA431B8 /* HomebrewChecker.swift in Sources */,

@@ -11,6 +11,16 @@ struct UpdateBarView: View {
         VStack(spacing: 0) {
             header
             Divider()
+            if let notice = store.toolNotice, !showingSettings {
+                Label(notice, systemImage: "checkmark.circle.fill")
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.green)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(.green.opacity(0.08))
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
             if showingSettings {
                 SettingsView(store: store, launchAtLogin: launchAtLogin)
             } else {
@@ -145,9 +155,7 @@ struct UpdateBarView: View {
                 Label("Command-line tools", systemImage: "terminal")
                     .font(.subheadline.weight(.semibold))
                 Spacer()
-                if store.runningActions.contains(UpdateStore.allToolsID) {
-                    ProgressView().controlSize(.small)
-                } else {
+                if store.toolRun == nil {
                     Button("Upgrade all (\(store.tools.count))") { store.upgradeAllTools() }
                         .controlSize(.small)
                 }
@@ -155,6 +163,20 @@ struct UpdateBarView: View {
             .padding(.horizontal, 16)
             .padding(.top, 14)
             .padding(.bottom, 6)
+
+            if let run = store.toolRun {
+                VStack(alignment: .leading, spacing: 4) {
+                    ProgressView(value: run.fraction)
+                        .progressViewStyle(.linear)
+                        .animation(.easeOut(duration: 0.3), value: run.fraction)
+                    Text(run.summary)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .contentTransition(.numericText())
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 6)
+            }
 
             if let message = store.actionMessages[UpdateStore.allToolsID] {
                 Text(message)
@@ -167,8 +189,8 @@ struct UpdateBarView: View {
             ForEach(store.requestedTools) { tool in
                 ToolRow(
                     tool: tool,
-                    isRunning: store.runningActions.contains("formula|\(tool.name)")
-                        || store.runningActions.contains(UpdateStore.allToolsID),
+                    stage: store.stage(of: tool),
+                    canUpgrade: store.toolRun == nil,
                     message: store.actionMessages["formula|\(tool.name)"],
                     upgrade: { store.upgrade(tool) }
                 )
@@ -178,9 +200,14 @@ struct UpdateBarView: View {
                 DisclosureGroup {
                     VStack(alignment: .leading, spacing: 2) {
                         ForEach(store.dependencyTools) { tool in
-                            Text("\(tool.name)  \(tool.installedVersion) → \(tool.latestVersion)")
-                                .font(.caption.monospaced())
-                                .foregroundStyle(.secondary)
+                            HStack(spacing: 6) {
+                                Text("\(tool.name)  \(tool.installedVersion) → \(tool.latestVersion)")
+                                    .font(.caption.monospaced())
+                                    .foregroundStyle(.secondary)
+                                if let stage = store.stage(of: tool) {
+                                    StageBadge(stage: stage, compact: true)
+                                }
+                            }
                         }
                     }
                     .padding(.top, 2)
@@ -335,9 +362,39 @@ private struct UpdateRow: View {
     }
 }
 
+/// A package's place in a running brew upgrade: waiting, a live spinner with the
+/// current step, or a check mark.
+private struct StageBadge: View {
+    let stage: BrewStage
+    var compact = false
+
+    var body: some View {
+        HStack(spacing: 4) {
+            switch stage {
+            case .queued:
+                Image(systemName: "clock").foregroundStyle(.tertiary)
+            case .downloading, .installing:
+                ProgressView().controlSize(.mini)
+            case .done:
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            case .failed:
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+            }
+            if !compact || stage.isActive {
+                Text(stage.label)
+                    .foregroundStyle(stage == .done ? .green : (stage == .queued ? .secondary : .primary))
+            }
+        }
+        .font(.caption)
+        .frame(minWidth: compact ? nil : 90, alignment: .trailing)
+        .animation(.easeOut(duration: 0.2), value: stage)
+    }
+}
+
 private struct ToolRow: View {
     let tool: ToolUpdate
-    let isRunning: Bool
+    let stage: BrewStage?
+    let canUpgrade: Bool
     let message: String?
     let upgrade: () -> Void
 
@@ -366,10 +423,12 @@ private struct ToolRow: View {
                         .lineLimit(1)
                 }
                 Spacer(minLength: 4)
-                if isRunning {
-                    ProgressView().controlSize(.small)
+                if let stage {
+                    StageBadge(stage: stage)
                 } else {
-                    Button("Upgrade", action: upgrade).controlSize(.small)
+                    Button("Upgrade", action: upgrade)
+                        .controlSize(.small)
+                        .disabled(!canUpgrade)
                 }
             }
             .contextMenu {
