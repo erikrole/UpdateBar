@@ -15,12 +15,14 @@
 		5269B7A5C5ADEF9370E4BD1D /* CheckerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2263EA0DD4F1E26D1047BF59 /* CheckerTests.swift */; };
 		7713F5C1C6698DE268AB7D74 /* AppScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5490F5D1A4740AD7E4C9F5 /* AppScanner.swift */; };
 		7D45898A07738FCB87203CFA /* UpdateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F9FB943E6B1097D9891CC29 /* UpdateStore.swift */; };
+		82552BD5B21F5C03EBC3F02F /* FormulaChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EE2514B9F5ED815B8D6C97B /* FormulaChecker.swift */; };
 		868E1AED293E6AB1424EFC2C /* LaunchAtLoginController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 734BE46E1EBD1A2D47AB2781 /* LaunchAtLoginController.swift */; };
 		AB920BADF055526840251AA1 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 422767A185DF56A59314595D /* Models.swift */; };
 		B09EFA8CBF4DAC6BE63D0582 /* UpdateBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A524B9E8B2059D0E778E4F18 /* UpdateBarApp.swift */; };
 		B83DE0BB936F0A9447C76100 /* UpdateBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C74D674E6BED3502B6384FEC /* UpdateBarView.swift */; };
 		C4FBEE19D1F5D16ADE60CBFF /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = DB8225BE54B9D3C33C3FAFC8 /* Sparkle */; };
 		D7FB5B02346D5AA88FC3E556 /* SparkleInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17F08557CC0A48FFA69C5E67 /* SparkleInstaller.swift */; };
+		E2A5852F2016B67F7F1EB3B3 /* IndexCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DA38C0307FF8C255BD33091 /* IndexCache.swift */; };
 		E4323703FF706CAF2AA431B8 /* HomebrewChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F0E409103E781AFF9B31C3F /* HomebrewChecker.swift */; };
 		F8D2F4DAECFB2715FDBC3DC8 /* GitHubChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE61661C3E0639E4013F054 /* GitHubChecker.swift */; };
 		F91A72F5E9BA11B33F53F0D7 /* VersionComparatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC283181845BE799B947F3CF /* VersionComparatorTests.swift */; };
@@ -42,8 +44,10 @@
 		1CDF14A00E54CBF62853A52C /* SparkleChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SparkleChecker.swift; sourceTree = "<group>"; };
 		204CA6316A3FA202873EC64F /* UpdateBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = UpdateBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2263EA0DD4F1E26D1047BF59 /* CheckerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckerTests.swift; sourceTree = "<group>"; };
+		2DA38C0307FF8C255BD33091 /* IndexCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndexCache.swift; sourceTree = "<group>"; };
 		408036FC8E91C9B0B1EE2FBF /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
 		422767A185DF56A59314595D /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		5EE2514B9F5ED815B8D6C97B /* FormulaChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormulaChecker.swift; sourceTree = "<group>"; };
 		70006C32ECA724A4FDFB3524 /* UpdateBarTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = UpdateBarTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		734BE46E1EBD1A2D47AB2781 /* LaunchAtLoginController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginController.swift; sourceTree = "<group>"; };
 		7F9FB943E6B1097D9891CC29 /* UpdateStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateStore.swift; sourceTree = "<group>"; };
@@ -74,8 +78,10 @@
 			isa = PBXGroup;
 			children = (
 				00B3EC4EAA9A01CE1CD994A9 /* AppStoreChecker.swift */,
+				5EE2514B9F5ED815B8D6C97B /* FormulaChecker.swift */,
 				FDE61661C3E0639E4013F054 /* GitHubChecker.swift */,
 				9F0E409103E781AFF9B31C3F /* HomebrewChecker.swift */,
+				2DA38C0307FF8C255BD33091 /* IndexCache.swift */,
 				1CDF14A00E54CBF62853A52C /* SparkleChecker.swift */,
 				408036FC8E91C9B0B1EE2FBF /* UpdateChecker.swift */,
 			);
@@ -224,8 +230,10 @@
 			files = (
 				7713F5C1C6698DE268AB7D74 /* AppScanner.swift in Sources */,
 				34023FB975D1FBF5F02C4E24 /* AppStoreChecker.swift in Sources */,
+				82552BD5B21F5C03EBC3F02F /* FormulaChecker.swift in Sources */,
 				F8D2F4DAECFB2715FDBC3DC8 /* GitHubChecker.swift in Sources */,
 				E4323703FF706CAF2AA431B8 /* HomebrewChecker.swift in Sources */,
+				E2A5852F2016B67F7F1EB3B3 /* IndexCache.swift in Sources */,
 				868E1AED293E6AB1424EFC2C /* LaunchAtLoginController.swift in Sources */,
 				AB920BADF055526840251AA1 /* Models.swift in Sources */,
 				502EC85786F01CBC8C60DE03 /* SparkleChecker.swift in Sources */,

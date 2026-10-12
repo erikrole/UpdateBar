@@ -87,6 +87,8 @@ struct AvailableUpdate: Identifiable, Hashable, Sendable {
     let releaseNotesURL: URL?
     let downloadURL: URL?
     let action: UpdateAction
+    /// The pre-release channel ("beta") when this isn't a stable release.
+    var channel: String? = nil
 
     var id: String { "\(bundleIdentifier)|\(source.rawValue)|\(version)" }
 }

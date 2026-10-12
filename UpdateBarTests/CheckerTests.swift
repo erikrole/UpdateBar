@@ -103,6 +103,81 @@ final class SparkleTests: XCTestCase {
     }
 }
 
+final class BetaTests: XCTestCase {
+    private let system = OperatingSystemVersion(majorVersion: 26, minorVersion: 1, patchVersion: 0)
+    private let items = [
+        AppcastItem(version: "210", shortVersion: "2.1"),
+        AppcastItem(version: "220", shortVersion: "2.2b1", channel: "beta"),
+    ]
+
+    func testBetasOnlyWhenOptedIn() throws {
+        XCTAssertEqual(SparkleChecker.newestCompatible(items, systemVersion: system)?.shortVersion, "2.1")
+        let beta = try XCTUnwrap(SparkleChecker.newestCompatible(items, systemVersion: system, includeBetas: true))
+        XCTAssertEqual(beta.shortVersion, "2.2b1")
+        let update = try XCTUnwrap(SparkleChecker.update(for: app("com.x.App", short: "2.1", build: "210"), item: beta))
+        XCTAssertEqual(update.channel, "beta")
+    }
+
+    func testFeedsThatTagStableReleases() throws {
+        // OBS tags regular releases "stable" and betas "beta".
+        let obs = [
+            AppcastItem(version: "300", shortVersion: "33.0.0", channel: "beta"),
+            AppcastItem(version: "200", shortVersion: "32.2.2", channel: "stable"),
+        ]
+        XCTAssertEqual(SparkleChecker.newestCompatible(obs, systemVersion: system)?.shortVersion, "32.2.2")
+        let beta = try XCTUnwrap(SparkleChecker.newestCompatible(obs, systemVersion: system, includeBetas: true))
+        XCTAssertEqual(SparkleChecker.update(for: app("com.obsproject.obs-studio", short: "32.2.2", build: "200"), item: beta)?.channel, "beta")
+        XCTAssertNil(SparkleChecker.update(for: app("x", short: "32.2.1", build: "100"), item: obs[1])?.channel)
+    }
+
+    func testStableNewerThanOldBetaWins() {
+        let mixed = items + [AppcastItem(version: "300", shortVersion: "3.0")]
+        XCTAssertEqual(SparkleChecker.newestCompatible(mixed, systemVersion: system, includeBetas: true)?.shortVersion, "3.0")
+    }
+}
+
+final class FormulaTests: XCTestCase {
+    private let formulae = [
+        FormulaChecker.Formula(name: "ffmpeg", oldNames: [], packageVersion: "9.0.2_1", summary: "Video tools", homepage: nil, isDisabled: false),
+        FormulaChecker.Formula(name: "uv", oldNames: [], packageVersion: "0.13.0", summary: nil, homepage: nil, isDisabled: false),
+        FormulaChecker.Formula(name: "pycparser", oldNames: [], packageVersion: "3.11", summary: nil, homepage: nil, isDisabled: false),
+        FormulaChecker.Formula(name: "git", oldNames: [], packageVersion: "2.52.0", summary: nil, homepage: nil, isDisabled: false),
+        FormulaChecker.Formula(name: "node@24", oldNames: ["node24"], packageVersion: "24.21.0_2", summary: nil, homepage: nil, isDisabled: false),
+    ]
+
+    func testFindsOutdatedAndRebuilds() {
+        let installed: [String: FormulaChecker.Installed] = [
+            "ffmpeg": .init(versions: ["9.0.2"], requested: true),
+            "uv": .init(versions: ["0.12.18"], requested: true),
+            "pycparser": .init(versions: ["3.0"], requested: false),
+            "git": .init(versions: ["2.52.0"], requested: true),
+            "node24": .init(versions: ["24.21.0_2"], requested: true),
+        ]
+        let updates = FormulaChecker.evaluate(installed: installed, formulae: formulae, pinned: [])
+        XCTAssertEqual(updates.map(\.name), ["ffmpeg", "pycparser", "uv"])
+        XCTAssertTrue(updates[0].isRebuild)
+        XCTAssertFalse(updates[2].isRebuild)
+        XCTAssertFalse(updates[1].requested)
+    }
+
+    func testSkipsPinnedAndHeadBuilds() {
+        let installed: [String: FormulaChecker.Installed] = [
+            "uv": .init(versions: ["0.12.18"], requested: true),
+            "ffmpeg": .init(versions: ["HEAD-abc123"], requested: true),
+        ]
+        XCTAssertTrue(FormulaChecker.evaluate(installed: installed, formulae: formulae, pinned: ["uv"]).isEmpty)
+    }
+
+    func testDecodesRevisionIntoPackageVersion() throws {
+        let json = """
+        [{"name":"ffmpeg","oldnames":[],"versions":{"stable":"9.0.2"},"revision":1,"desc":"Play, record, convert","homepage":"https://ffmpeg.org/"},
+         {"name":"uv","versions":{"stable":"0.13.0"},"revision":0}]
+        """
+        let decoded = try FormulaChecker.decode(Data(json.utf8))
+        XCTAssertEqual(decoded.map(\.packageVersion), ["9.0.2_1", "0.13.0"])
+    }
+}
+
 final class AppStoreTests: XCTestCase {
     func testEvaluatesLookupResults() throws {
         let json = """
@@ -272,7 +347,7 @@ final class ScannerTests: XCTestCase {
     }
 
     func testBrewFailureSummary() {
-        XCTAssertTrue(BrewRunner.summary(of: "==> Running installer\nsudo: a password is required", token: "zoom").contains("brew upgrade --cask zoom"))
-        XCTAssertEqual(BrewRunner.summary(of: "x\nError: Download failed\n", token: "t"), "Error: Download failed")
+        XCTAssertTrue(BrewRunner.summary(of: "==> Running installer\nsudo: a password is required", command: "brew upgrade --cask zoom").contains("brew upgrade --cask zoom"))
+        XCTAssertEqual(BrewRunner.summary(of: "x\nError: Download failed\n", command: "brew upgrade"), "Error: Download failed")
     }
 }

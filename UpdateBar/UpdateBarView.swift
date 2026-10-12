@@ -94,7 +94,7 @@ struct UpdateBarView: View {
 
     @ViewBuilder
     private var content: some View {
-        if store.rows.isEmpty {
+        if store.rows.isEmpty && store.requestedTools.isEmpty && store.dependencyTools.isEmpty {
             VStack(spacing: 8) {
                 Spacer()
                 Image(systemName: store.lastChecked == nil ? "hourglass" : "checkmark.circle")
@@ -124,10 +124,71 @@ struct UpdateBarView: View {
                         )
                         Divider().padding(.leading, 56)
                     }
+                    if !store.requestedTools.isEmpty || !store.dependencyTools.isEmpty {
+                        toolsSection
+                    }
                     if !store.failures.isEmpty {
                         failureDisclosure.padding(16)
                     }
                 }
+            }
+        }
+    }
+
+    // MARK: - Command-line tools
+
+    private var toolsSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Label("Command-line tools", systemImage: "terminal")
+                    .font(.subheadline.weight(.semibold))
+                Spacer()
+                if store.runningActions.contains(UpdateStore.allToolsID) {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button("Upgrade all (\(store.tools.count))") { store.upgradeAllTools() }
+                        .controlSize(.small)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 6)
+
+            if let message = store.actionMessages[UpdateStore.allToolsID] {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .textSelection(.enabled)
+                    .padding(.horizontal, 16)
+            }
+
+            ForEach(store.requestedTools) { tool in
+                ToolRow(
+                    tool: tool,
+                    isRunning: store.runningActions.contains("formula|\(tool.name)")
+                        || store.runningActions.contains(UpdateStore.allToolsID),
+                    message: store.actionMessages["formula|\(tool.name)"],
+                    upgrade: { store.upgrade(tool) }
+                )
+            }
+
+            if !store.dependencyTools.isEmpty {
+                DisclosureGroup {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ForEach(store.dependencyTools) { tool in
+                            Text("\(tool.name)  \(tool.installedVersion) → \(tool.latestVersion)")
+                                .font(.caption.monospaced())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.top, 2)
+                } label: {
+                    Text("\(store.dependencyTools.count) dependencies, included in Upgrade all")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
             }
         }
     }
@@ -172,6 +233,13 @@ private struct UpdateRow: View {
                     Text(row.app.name).font(.body.weight(.medium)).lineLimit(1)
                     HStack(spacing: 4) {
                         Text("\(row.app.displayVersion) → \(row.update.version)")
+                        if let channel = row.update.channel {
+                            Text(channel.uppercased())
+                                .font(.caption2.weight(.semibold))
+                                .padding(.horizontal, 4)
+                                .background(.orange.opacity(0.2), in: Capsule())
+                                .foregroundStyle(.orange)
+                        }
                         Text("·")
                         Label(row.update.source.label, systemImage: row.update.source.symbolName)
                             .labelStyle(.titleAndIcon)
@@ -265,6 +333,61 @@ private struct UpdateRow: View {
     }
 }
 
+private struct ToolRow: View {
+    let tool: ToolUpdate
+    let isRunning: Bool
+    let message: String?
+    let upgrade: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 10) {
+                Image(systemName: "shippingbox")
+                    .font(.system(size: 16))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 32)
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text(tool.name).font(.body.weight(.medium).monospaced()).lineLimit(1)
+                        if tool.isRebuild {
+                            Text("REBUILD")
+                                .font(.caption2.weight(.semibold))
+                                .padding(.horizontal, 4)
+                                .background(.secondary.opacity(0.15), in: Capsule())
+                                .foregroundStyle(.secondary)
+                                .help("Same release, rebuilt by Homebrew against newer libraries.")
+                        }
+                    }
+                    Text("\(tool.installedVersion) → \(tool.latestVersion)\(tool.summary.map { " · \($0)" } ?? "")")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 4)
+                if isRunning {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button("Upgrade", action: upgrade).controlSize(.small)
+                }
+            }
+            .contextMenu {
+                if let homepage = tool.homepage {
+                    Button("Open Homepage") { NSWorkspace.shared.open(homepage) }
+                }
+            }
+            if let message {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                    .textSelection(.enabled)
+                    .padding(.leading, 42)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+    }
+}
+
 private struct SettingsView: View {
     @Bindable var store: UpdateStore
     @Bindable var launchAtLogin: LaunchAtLoginController
@@ -287,6 +410,31 @@ private struct SettingsView: View {
                     Text("12 hours").tag(12)
                     Text("Day").tag(24)
                 }
+            }
+
+            Section {
+                Toggle("Show Homebrew command-line tools", isOn: $store.showsTools)
+            }
+
+            Section {
+                if store.betaCapableApps.isEmpty {
+                    Text("None of your apps publish betas through their update feed.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(store.betaCapableApps) { app in
+                        Toggle(app.name, isOn: Binding(
+                            get: { store.isBetaEnabled(app.bundleIdentifier) },
+                            set: { store.setBeta($0, for: app.bundleIdentifier) }
+                        ))
+                    }
+                }
+            } header: {
+                Text("Beta updates")
+            } footer: {
+                Text("Apps listed here publish betas through Sparkle. Turn one on to be offered its betas as well as stable releases.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
 
             Section("Ignored apps") {

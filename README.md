@@ -16,6 +16,13 @@ is used.
 - Compares against the version actually on disk, so apps that updated themselves
   aren't flagged the way `brew outdated --greedy` flags them.
 - Shows release notes inline, and lets you skip a version or ignore an app.
+- Lists outdated Homebrew command-line tools (formulae) in their own section,
+  matching `brew outdated`, with per-tool Upgrade and an Upgrade all that covers
+  dependencies too. Pinned formulae and HEAD builds are left alone, and rebuilds
+  of the same release are labelled as such. Homebrew's indexes are revalidated by
+  ETag, so results are fresh within minutes of Homebrew publishing.
+- Per-app beta opt-in for Sparkle apps whose feeds publish pre-release channels
+  (Settings → Beta updates); beta offers are labelled in the list.
 - One-click updates: `brew upgrade --cask` for Homebrew installs (as you, never
   with admin rights), in-place installs for Sparkle apps that sign their updates
   (via the embedded [Sparkle](https://sparkle-project.org) framework, verified
@@ -44,8 +51,9 @@ UpdateBar.app/Contents/MacOS/UpdateBar --report
 UpdateBar.app/Contents/MacOS/UpdateBar --install <bundle ID>   # installs one pending update, then exits
 ```
 
-The Homebrew cask index (~20 MB) is cached at
-`~/Library/Application Support/UpdateBar/cask.json` for six hours.
+Homebrew's cask (~20 MB) and formula (~30 MB) indexes are cached in
+`~/Library/Application Support/UpdateBar/` and revalidated with their ETag at
+most every ten minutes.
 
 ## Test
 

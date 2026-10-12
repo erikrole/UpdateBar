@@ -8,6 +8,8 @@ import UserNotifications
 @Observable
 final class UpdateStore {
     private(set) var rows: [AppUpdate] = []
+    /// Outdated Homebrew formulae, requested ones first.
+    private(set) var tools: [ToolUpdate] = []
     private(set) var failures: [CheckFailure] = []
     private(set) var appCount = 0
     private(set) var lastChecked: Date?
@@ -27,6 +29,11 @@ final class UpdateStore {
     private(set) var ignoredApps: Set<String>
     private(set) var skippedVersions: [String: String]
     private(set) var ignoredAppNames: [String: String]
+    /// Apps opted into pre-release (beta) updates.
+    private(set) var betaApps: Set<String>
+    var showsTools: Bool {
+        didSet { defaults.set(showsTools, forKey: Keys.showsTools) }
+    }
 
     private var lastResult = CheckerResult()
     private var installedApps: [InstalledApp] = []
@@ -42,6 +49,8 @@ final class UpdateStore {
         static let skipped = "skippedVersions"
         static let notified = "notifiedUpdateIDs"
         static let repositories = "githubRepositories"
+        static let betaApps = "betaApps"
+        static let showsTools = "showsCommandLineTools"
     }
 
     init() {
@@ -51,9 +60,41 @@ final class UpdateStore {
         ignoredAppNames = defaults.dictionary(forKey: Keys.ignoredNames) as? [String: String] ?? [:]
         skippedVersions = defaults.dictionary(forKey: Keys.skipped) as? [String: String] ?? [:]
         notifiedUpdateIDs = Set(defaults.stringArray(forKey: Keys.notified) ?? [])
+        betaApps = Set(defaults.stringArray(forKey: Keys.betaApps) ?? [])
+        showsTools = defaults.object(forKey: Keys.showsTools) as? Bool ?? true
     }
 
-    var pendingCount: Int { rows.count }
+    /// Tools you installed yourself; dependencies are upgraded along with them.
+    var requestedTools: [ToolUpdate] { showsTools ? tools.filter(\.requested) : [] }
+    var dependencyTools: [ToolUpdate] { showsTools ? tools.filter { !$0.requested } : [] }
+
+    /// What the menu bar count shows: app updates plus tools you installed yourself.
+    var pendingCount: Int { rows.count + requestedTools.count }
+
+    /// Sparkle apps whose feeds publish betas, for the beta toggles.
+    var betaCapableApps: [InstalledApp] {
+        installedApps.filter { app in
+            lastResult.feedChannels[app.bundleIdentifier]?.contains(where: AppcastItem.isPrereleaseChannel) == true
+        }
+    }
+
+    func isBetaEnabled(_ bundleIdentifier: String) -> Bool {
+        betaApps.contains(bundleIdentifier)
+    }
+
+    func setBeta(_ enabled: Bool, for bundleIdentifier: String) {
+        if enabled { betaApps.insert(bundleIdentifier) } else { betaApps.remove(bundleIdentifier) }
+        defaults.set(Array(betaApps), forKey: Keys.betaApps)
+        Task { await checkNow() }
+    }
+
+    /// Channels Sparkle may install from: the feed's stable-named channels always,
+    /// and its pre-release channels only when you opted the app into betas.
+    private func betaChannels(for bundleIdentifier: String) -> Set<String> {
+        let channels = lastResult.feedChannels[bundleIdentifier] ?? []
+        if betaApps.contains(bundleIdentifier) { return channels }
+        return channels.filter { !AppcastItem.isPrereleaseChannel($0) }
+    }
 
     func start() {
         if notificationsEnabled { requestNotificationPermission() }
@@ -75,10 +116,11 @@ final class UpdateStore {
         let repositories = defaults.dictionary(forKey: Keys.repositories) as? [String: String] ?? [:]
         let checkers: [any UpdateChecker] = [
             AppStoreChecker(),
-            SparkleChecker(),
+            SparkleChecker(betaApps: betaApps),
             HomebrewChecker(),
             GitHubChecker(repositories: repositories),
         ]
+        async let formulae = FormulaChecker().check()
         let combined = await withTaskGroup(of: CheckerResult.self) { group in
             for checker in checkers {
                 group.addTask { await checker.check(apps) }
@@ -87,9 +129,11 @@ final class UpdateStore {
             for await result in group { combined.merge(result) }
             return combined
         }
+        let toolResult = await formulae
 
         lastResult = combined
-        failures = combined.failures.sorted { ($0.source, $0.subject) < ($1.source, $1.subject) }
+        tools = toolResult.tools
+        failures = (combined.failures + toolResult.failures).sorted { ($0.source, $0.subject) < ($1.source, $1.subject) }
         lastChecked = Date()
         resolve()
         notifyAboutNewUpdates()
@@ -165,7 +209,7 @@ final class UpdateStore {
         case .sparkleInstall:
             runningActions.insert(id)
             Task {
-                let outcome = await SparkleInstaller.install(row.app) { [weak self] status in
+                let outcome = await SparkleInstaller.install(row.app, channels: betaChannels(for: row.app.bundleIdentifier)) { [weak self] status in
                     self?.actionMessages[id] = status
                 }
                 runningActions.remove(id)
@@ -226,7 +270,7 @@ final class UpdateStore {
                         actionMessages[row.id] = message
                     }
                 case .sparkleInstall:
-                    let outcome = await SparkleInstaller.install(row.app) { [weak self] status in
+                    let outcome = await SparkleInstaller.install(row.app, channels: betaChannels(for: row.app.bundleIdentifier)) { [weak self] status in
                         self?.actionMessages[row.id] = status
                     }
                     switch outcome {
@@ -246,6 +290,31 @@ final class UpdateStore {
         rows.filter(\.installsInPlace).count
     }
 
+    // MARK: - Command-line tools
+
+    static let allToolsID = "formula|*"
+
+    func upgrade(_ tool: ToolUpdate) {
+        upgradeTools([tool.name], actionID: "formula|\(tool.name)")
+    }
+
+    /// Upgrades every outdated formula, dependencies included, in one brew run.
+    func upgradeAllTools() {
+        upgradeTools(tools.map(\.name), actionID: Self.allToolsID)
+    }
+
+    private func upgradeTools(_ names: [String], actionID: String) {
+        guard !names.isEmpty, runningActions.isDisjoint(with: [actionID, Self.allToolsID]) else { return }
+        actionMessages[actionID] = nil
+        runningActions.insert(actionID)
+        Task {
+            let outcome = await BrewRunner.upgrade(formulae: names)
+            runningActions.remove(actionID)
+            if case let .failure(message) = outcome { actionMessages[actionID] = message }
+            await checkNow()
+        }
+    }
+
     // MARK: - Notifications
 
     private func requestNotificationPermission() {
@@ -254,21 +323,29 @@ final class UpdateStore {
     }
 
     private func notifyAboutNewUpdates() {
+        let pending: [(id: String, name: String)] = rows.map { ($0.update.id, $0.app.name) }
+            + requestedTools.map { ($0.notificationID, $0.name) }
+        let freshTools = requestedTools.filter { !notifiedUpdateIDs.contains($0.notificationID) }
         let fresh = rows.filter { !notifiedUpdateIDs.contains($0.update.id) }
-        notifiedUpdateIDs.formUnion(rows.map(\.update.id))
+        let pendingIDs = Set(pending.map(\.id))
+        notifiedUpdateIDs.formUnion(pendingIDs)
         // Keep the memory small: only IDs still pending matter.
-        notifiedUpdateIDs.formIntersection(Set(rows.map(\.update.id)))
+        notifiedUpdateIDs.formIntersection(pendingIDs)
         defaults.set(Array(notifiedUpdateIDs), forKey: Keys.notified)
 
-        guard notificationsEnabled, !fresh.isEmpty, !Self.isRunningTests else { return }
+        let freshCount = fresh.count + freshTools.count
+        guard notificationsEnabled, freshCount > 0, !Self.isRunningTests else { return }
         let content = UNMutableNotificationContent()
-        if fresh.count == 1, let row = fresh.first {
+        if fresh.count == 1, freshTools.isEmpty, let row = fresh.first {
             content.title = "\(row.app.name) \(row.update.version) is available"
             content.body = "You have \(row.app.displayVersion). Open UpdateBar to update."
+        } else if fresh.isEmpty, freshTools.count == 1, let tool = freshTools.first {
+            content.title = "\(tool.name) \(tool.latestVersion) is available"
+            content.body = "You have \(tool.installedVersion). Open UpdateBar to upgrade."
         } else {
-            content.title = "\(fresh.count) app updates available"
-            content.body = fresh.prefix(4).map(\.app.name).joined(separator: ", ")
-                + (fresh.count > 4 ? ", and more" : "")
+            content.title = "\(freshCount) updates available"
+            let names = fresh.map(\.app.name) + freshTools.map(\.name)
+            content.body = names.prefix(4).joined(separator: ", ") + (names.count > 4 ? ", and more" : "")
         }
         let request = UNNotificationRequest(identifier: "updates-\(Date().timeIntervalSince1970)", content: content, trigger: nil)
         UNUserNotificationCenter.current().add(request)
@@ -291,13 +368,21 @@ enum BrewRunner {
     }
 
     static func upgrade(cask token: String) async -> Outcome {
+        await run(["upgrade", "--cask", token], retryHint: "brew upgrade --cask \(token)")
+    }
+
+    static func upgrade(formulae names: [String]) async -> Outcome {
+        await run(["upgrade", "--formula"] + names, retryHint: "brew upgrade --formula \(names.joined(separator: " "))")
+    }
+
+    private static func run(_ arguments: [String], retryHint: String) async -> Outcome {
         guard let brewPath else { return .failure("Homebrew isn't installed in the usual place.") }
         // Read output while brew runs: waiting for exit first would deadlock once a
         // verbose upgrade fills the pipe buffer.
         return await Task.detached(priority: .userInitiated) { () -> Outcome in
             let process = Process()
             process.executableURL = URL(filePath: brewPath)
-            process.arguments = ["upgrade", "--cask", token]
+            process.arguments = arguments
             var environment = ProcessInfo.processInfo.environment
             environment["NONINTERACTIVE"] = "1"
             environment["HOMEBREW_NO_ENV_HINTS"] = "1"
@@ -315,18 +400,18 @@ enum BrewRunner {
             let data = output.fileHandleForReading.readDataToEndOfFile()
             process.waitUntilExit()
             if process.terminationStatus == 0 { return .success }
-            return .failure(summary(of: String(decoding: data, as: UTF8.self), token: token))
+            return .failure(summary(of: String(decoding: data, as: UTF8.self), command: retryHint))
         }.value
     }
 
     /// Picks the line that explains a failure, and says what to do when brew needs a password.
-    static func summary(of output: String, token: String) -> String {
+    static func summary(of output: String, command: String) -> String {
         if output.localizedCaseInsensitiveContains("sudo") || output.localizedCaseInsensitiveContains("password") {
-            return "This cask needs your password. Run `brew upgrade --cask \(token)` in Terminal."
+            return "This needs your password. Run `\(command)` in Terminal."
         }
         let errorLine = output.split(separator: "\n").last { $0.localizedCaseInsensitiveContains("error") }
         return errorLine.map { String($0).trimmingCharacters(in: .whitespaces) }
-            ?? "brew upgrade failed. Run `brew upgrade --cask \(token)` in Terminal to see why."
+            ?? "brew failed. Run `\(command)` in Terminal to see why."
     }
 }
 

@@ -22,18 +22,23 @@ final class SparkleInstaller {
     private let delegate: InstallDelegate
     private var updater: SPUUpdater?
 
-    private init(app: InstalledApp, wasRunning: Bool, progress: @escaping @MainActor (String) -> Void) {
+    private init(app: InstalledApp, wasRunning: Bool, channels: Set<String>, progress: @escaping @MainActor (String) -> Void) {
         self.app = app
         driver = SilentUserDriver(appName: app.name, progress: progress)
-        delegate = InstallDelegate(relaunch: wasRunning)
+        delegate = InstallDelegate(relaunch: wasRunning, channels: channels)
     }
 
-    static func install(_ app: InstalledApp, progress: @escaping @MainActor (String) -> Void) async -> Outcome {
+    /// `channels` lists the pre-release channels to accept; empty means stable only.
+    static func install(
+        _ app: InstalledApp,
+        channels: Set<String> = [],
+        progress: @escaping @MainActor (String) -> Void
+    ) async -> Outcome {
         guard sessions[app.bundleIdentifier] == nil else { return .failure("An update for \(app.name) is already running.") }
         guard let bundle = Bundle(url: app.url) else { return .failure("Couldn't read \(app.name)'s bundle.") }
 
         let wasRunning = !NSRunningApplication.runningApplications(withBundleIdentifier: app.bundleIdentifier).isEmpty
-        let session = SparkleInstaller(app: app, wasRunning: wasRunning, progress: progress)
+        let session = SparkleInstaller(app: app, wasRunning: wasRunning, channels: channels, progress: progress)
         sessions[app.bundleIdentifier] = session
         defer { sessions[app.bundleIdentifier] = nil }
 
@@ -157,13 +162,15 @@ private final class SilentUserDriver: NSObject, SPUUserDriver {
 
 private final class InstallDelegate: NSObject, SPUUpdaterDelegate {
     private let relaunch: Bool
+    private let channels: Set<String>
 
-    init(relaunch: Bool) {
+    init(relaunch: Bool, channels: Set<String>) {
         self.relaunch = relaunch
+        self.channels = channels
     }
 
-    /// Stable releases only, whatever channel the app itself follows.
-    func allowedChannels(for updater: SPUUpdater) -> Set<String> { [] }
+    /// Stable releases, plus pre-release channels only for apps you opted into betas.
+    func allowedChannels(for updater: SPUUpdater) -> Set<String> { channels }
 
     /// Reopen the app afterwards only if it was open when the update started.
     func updaterShouldRelaunchApplication(_ updater: SPUUpdater) -> Bool { relaunch }

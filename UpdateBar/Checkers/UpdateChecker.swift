@@ -9,6 +9,8 @@ struct CheckerResult: Sendable {
     /// so a fallback source can't contradict the app's real updater.
     var covered: [UpdateSource: Set<String>] = [:]
     var failures: [CheckFailure] = []
+    /// Channel names each Sparkle feed uses, stable-named ones included.
+    var feedChannels: [String: Set<String>] = [:]
 
     mutating func cover(_ bundleIdentifier: String, by source: UpdateSource) {
         covered[source, default: []].insert(bundleIdentifier)
@@ -22,6 +24,7 @@ struct CheckerResult: Sendable {
         updates += other.updates
         covered.merge(other.covered) { $0.union($1) }
         failures += other.failures
+        feedChannels.merge(other.feedChannels) { $0.union($1) }
     }
 }
 

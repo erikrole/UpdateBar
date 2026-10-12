@@ -115,6 +115,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let others = row.alsoReportedBy.isEmpty ? "" : " (also \(row.alsoReportedBy.map(\.label).joined(separator: ", ")))"
             lines.append("UPDATE  \(row.app.name)  \(row.app.displayVersion) -> \(row.update.version)  [\(row.update.source.label)]\(others)")
         }
+        for tool in store.tools {
+            let kind = tool.requested ? "TOOL" : "DEP "
+            lines.append("\(kind)    \(tool.name)  \(tool.installedVersion) -> \(tool.latestVersion)\(tool.isRebuild ? "  (rebuild)" : "")")
+        }
+        if !store.betaCapableApps.isEmpty {
+            lines.append("BETAS   " + store.betaCapableApps.map(\.name).joined(separator: ", "))
+        }
         for failure in store.failures {
             lines.append("FAILED  \(failure.subject) [\(failure.source.label)]: \(failure.message)")
         }

@@ -4,21 +4,14 @@ import Foundation
 ///
 /// For casks installed with Homebrew it is authoritative and offers `brew upgrade`.
 /// For other apps it is a fallback that only speaks when no real updater answered,
-/// and it links to the app's homepage instead of installing anything.
+/// and it opens the app or links its download instead of installing anything.
 struct HomebrewChecker: UpdateChecker {
     let source = UpdateSource.homebrew
-    var client = HTTPClient.shared
     var caskrooms: [URL] = [
         URL(filePath: "/opt/homebrew/Caskroom", directoryHint: .isDirectory),
         URL(filePath: "/usr/local/Caskroom", directoryHint: .isDirectory),
     ]
-    var cacheURL: URL = HomebrewChecker.defaultCacheURL
-    /// The cask index is ~20 MB, so it is refreshed at most this often.
-    var maxCacheAge: TimeInterval = 6 * 60 * 60
-
-    static var defaultCacheURL: URL {
-        URL.applicationSupportDirectory.appending(path: "UpdateBar/cask.json")
-    }
+    var index = IndexCache.homebrew("cask")
 
     func check(_ apps: [InstalledApp]) async -> CheckerResult {
         do {
@@ -35,27 +28,7 @@ struct HomebrewChecker: UpdateChecker {
     // MARK: - Cask index
 
     private func loadCasks() async throws -> [Cask] {
-        let fileManager = FileManager.default
-        let modified = (try? fileManager.attributesOfItem(atPath: cacheURL.path)[.modificationDate]) as? Date
-        if let modified, Date().timeIntervalSince(modified) < maxCacheAge,
-           let data = try? Data(contentsOf: cacheURL), let casks = try? Self.decode(data) {
-            return casks
-        }
-
-        do {
-            let (data, response) = try await client.data(from: URL(string: "https://formulae.brew.sh/api/cask.json")!)
-            guard (200..<300).contains(response.statusCode) else {
-                throw HTTPClient.HTTPError.status(response.statusCode)
-            }
-            let casks = try Self.decode(data)
-            try? fileManager.createDirectory(at: cacheURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try? data.write(to: cacheURL, options: .atomic)
-            return casks
-        } catch {
-            // Offline: a stale index is better than none.
-            if let data = try? Data(contentsOf: cacheURL), let casks = try? Self.decode(data) { return casks }
-            throw error
-        }
+        try Self.decode(try await index.load())
     }
 
     static func decode(_ data: Data) throws -> [Cask] {

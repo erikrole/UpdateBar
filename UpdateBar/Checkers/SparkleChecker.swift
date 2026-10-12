@@ -5,13 +5,17 @@ struct SparkleChecker: UpdateChecker {
     let source = UpdateSource.sparkle
     var client = HTTPClient.shared
     var systemVersion = ProcessInfo.processInfo.operatingSystemVersion
+    /// Apps you've opted into beta releases for.
+    var betaApps: Set<String> = []
 
     func check(_ apps: [InstalledApp]) async -> CheckerResult {
         let candidates = apps.filter { $0.sparkleFeedURL != nil && !$0.hasAppStoreReceipt }
         let client = client
         let systemVersion = systemVersion
+        let betaApps = betaApps
         let results = await candidates.concurrentMap(limit: 8) { app -> CheckerResult in
-            await Self.check(app, client: client, systemVersion: systemVersion)
+            await Self.check(app, client: client, systemVersion: systemVersion,
+                             includeBetas: betaApps.contains(app.bundleIdentifier))
         }
         return results.reduce(into: CheckerResult()) { $0.merge($1) }
     }
@@ -19,7 +23,8 @@ struct SparkleChecker: UpdateChecker {
     private static func check(
         _ app: InstalledApp,
         client: HTTPClient,
-        systemVersion: OperatingSystemVersion
+        systemVersion: OperatingSystemVersion,
+        includeBetas: Bool
     ) async -> CheckerResult {
         guard let feed = app.sparkleFeedURL else { return CheckerResult() }
         var result = CheckerResult()
@@ -34,7 +39,9 @@ struct SparkleChecker: UpdateChecker {
                 return result
             }
             result.cover(app.bundleIdentifier, by: .sparkle)
-            if let item = newestCompatible(items, systemVersion: systemVersion),
+            let channels = Set(items.compactMap(\.channel))
+            if !channels.isEmpty { result.feedChannels[app.bundleIdentifier] = channels }
+            if let item = newestCompatible(items, systemVersion: systemVersion, includeBetas: includeBetas),
                let update = update(for: app, item: item) {
                 result.updates.append(update)
             }
@@ -44,11 +51,16 @@ struct SparkleChecker: UpdateChecker {
         return result
     }
 
-    /// The newest stable item whose minimum macOS this Mac meets.
-    static func newestCompatible(_ items: [AppcastItem], systemVersion: OperatingSystemVersion) -> AppcastItem? {
+    /// The newest item whose minimum macOS this Mac meets: stable only, or any
+    /// channel when you've opted the app into betas.
+    static func newestCompatible(
+        _ items: [AppcastItem],
+        systemVersion: OperatingSystemVersion,
+        includeBetas: Bool = false
+    ) -> AppcastItem? {
         let system = "\(systemVersion.majorVersion).\(systemVersion.minorVersion).\(systemVersion.patchVersion)"
         return items
-            .filter { $0.channel == nil }
+            .filter { includeBetas || !$0.isPrerelease }
             .filter { item in
                 guard let minimum = item.minimumSystemVersion else { return true }
                 return VersionComparator.compare(system, to: minimum) != .older
@@ -87,12 +99,16 @@ struct SparkleChecker: UpdateChecker {
             releaseNotes: item.notes?.plainTextFromHTML.nilIfEmpty,
             releaseNotesURL: item.releaseNotesURL,
             downloadURL: item.downloadURL,
-            action: app.hasSparkleEDKey ? .sparkleInstall : .launchApp
+            action: app.hasSparkleEDKey ? .sparkleInstall : .launchApp,
+            channel: item.isPrerelease ? item.channel : nil
         )
     }
 }
 
 struct AppcastItem: Equatable, Sendable {
+    /// Channel names some feeds (OBS, for one) put on their regular releases.
+    static let stableChannelNames: Set<String> = ["stable", "release", "production", "default"]
+
     var title: String?
     var version: String?
     var shortVersion: String?
@@ -102,6 +118,17 @@ struct AppcastItem: Equatable, Sendable {
     var notes: String?
     var releaseNotesURL: URL?
     var downloadURL: URL?
+
+    /// On a pre-release channel such as "beta". Sparkle treats untagged items as the
+    /// default channel; a few feeds tag their stable releases too.
+    var isPrerelease: Bool {
+        guard let channel else { return false }
+        return !Self.stableChannelNames.contains(channel.lowercased())
+    }
+
+    static func isPrereleaseChannel(_ channel: String) -> Bool {
+        !stableChannelNames.contains(channel.lowercased())
+    }
 }
 
 /// A forgiving Sparkle appcast parser. Accepts versions on the enclosure or as child
