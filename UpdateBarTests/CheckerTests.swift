@@ -155,6 +155,17 @@ final class HomebrewTests: XCTestCase {
         XCTAssertFalse(result.isCovered("com.colliderli.iina", by: .homebrew))
     }
 
+    func testFallbackActions() {
+        let selfUpdating = Cask(token: "google-chrome", version: "2", appNames: ["Google Chrome.app"],
+                                downloadURL: URL(string: "https://dl.google.com/x.dmg"), autoUpdates: true)
+        XCTAssertEqual(HomebrewChecker.action(for: selfUpdating, brewInstalled: false), .launchApp)
+        XCTAssertEqual(HomebrewChecker.action(for: selfUpdating, brewInstalled: true), .brewUpgrade(token: "google-chrome"))
+        let plain = Cask(token: "x", version: "2", appNames: ["X.app"], homepage: URL(string: "https://x.com"),
+                         downloadURL: URL(string: "https://x.com/X.dmg"))
+        XCTAssertEqual(HomebrewChecker.action(for: plain, brewInstalled: false), .openURL(URL(string: "https://x.com/X.dmg")!))
+        XCTAssertEqual(UpdateStore.updatePage(for: "com.google.Chrome")?.absoluteString, "chrome://settings/help")
+    }
+
     func testFallbackRejectsAmbiguousAndMismatchedMatches() {
         let apps = [
             app("com.x.Foo", name: "Foo", short: "26.0"),   // different numbering scheme

@@ -124,10 +124,20 @@ struct HomebrewChecker: UpdateChecker {
                 releaseNotes: nil,
                 releaseNotesURL: cask.homepage,
                 downloadURL: cask.downloadURL,
-                action: brewInstalled ? .brewUpgrade(token: cask.token) : (cask.homepage.map(UpdateAction.openURL) ?? .launchApp)
+                action: Self.action(for: cask, brewInstalled: brewInstalled)
             ))
         }
         return result
+    }
+
+    /// Homebrew installs upgrade through brew. Otherwise, apps that update themselves
+    /// (Chrome, Edge, …) are opened so their own updater runs; the rest get the cask's
+    /// direct download rather than a marketing homepage.
+    static func action(for cask: Cask, brewInstalled: Bool) -> UpdateAction {
+        if brewInstalled { return .brewUpgrade(token: cask.token) }
+        if cask.autoUpdates { return .launchApp }
+        if let download = cask.downloadURL { return .openURL(download) }
+        return cask.homepage.map(UpdateAction.openURL) ?? .launchApp
     }
 
     /// Guards the fallback path against casks that number releases differently from
@@ -149,9 +159,11 @@ struct Cask: Sendable, Equatable {
     let homepage: URL?
     let downloadURL: URL?
     let isDisabled: Bool
+    /// The cask declares that the app updates itself.
+    let autoUpdates: Bool
 
     init(token: String, version: String, appNames: [String], bundleIdentifiers: Set<String> = [],
-         homepage: URL? = nil, downloadURL: URL? = nil, isDisabled: Bool = false) {
+         homepage: URL? = nil, downloadURL: URL? = nil, isDisabled: Bool = false, autoUpdates: Bool = false) {
         self.token = token
         self.version = version
         self.appNames = appNames
@@ -159,6 +171,7 @@ struct Cask: Sendable, Equatable {
         self.homepage = homepage
         self.downloadURL = downloadURL
         self.isDisabled = isDisabled
+        self.autoUpdates = autoUpdates
     }
 
     init?(json: [String: Any]) {
@@ -190,7 +203,8 @@ struct Cask: Sendable, Equatable {
             bundleIdentifiers: bundleIdentifiers,
             homepage: (json["homepage"] as? String).flatMap(URL.init(string:)),
             downloadURL: (json["url"] as? String).flatMap(URL.init(string:)),
-            isDisabled: (json["disabled"] as? Bool) == true || (json["deprecated"] as? Bool) == true
+            isDisabled: (json["disabled"] as? Bool) == true || (json["deprecated"] as? Bool) == true,
+            autoUpdates: (json["auto_updates"] as? Bool) == true
         )
     }
 }

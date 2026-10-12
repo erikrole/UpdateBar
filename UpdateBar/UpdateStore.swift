@@ -182,14 +182,34 @@ final class UpdateStore {
         case .launchApp:
             let configuration = NSWorkspace.OpenConfiguration()
             configuration.activates = true
-            NSWorkspace.shared.openApplication(at: row.app.url, configuration: configuration) { [weak self] _, error in
+            let completion: @Sendable (NSRunningApplication?, (any Error)?) -> Void = { [weak self] _, error in
                 guard let error else { return }
                 let message = error.localizedDescription
                 Task { @MainActor in self?.actionMessages[id] = message }
             }
+            if let aboutPage = Self.updatePage(for: row.app.bundleIdentifier) {
+                // Browsers check for and apply updates when their About page opens.
+                NSWorkspace.shared.open([aboutPage], withApplicationAt: row.app.url, configuration: configuration, completionHandler: completion)
+            } else {
+                NSWorkspace.shared.openApplication(at: row.app.url, configuration: configuration, completionHandler: completion)
+            }
         case let .openURL(url):
             NSWorkspace.shared.open(url)
         }
+    }
+
+    /// The page that makes a self-updating browser fetch its update right away.
+    nonisolated static func updatePage(for bundleIdentifier: String) -> URL? {
+        let pages = [
+            "com.google.Chrome": "chrome://settings/help",
+            "com.google.Chrome.beta": "chrome://settings/help",
+            "com.google.Chrome.dev": "chrome://settings/help",
+            "com.google.Chrome.canary": "chrome://settings/help",
+            "com.microsoft.edgemac": "edge://settings/help",
+            "com.brave.Browser": "brave://settings/help",
+            "com.vivaldi.Vivaldi": "vivaldi://about",
+        ]
+        return pages[bundleIdentifier].flatMap(URL.init(string:))
     }
 
     /// Runs every update that installs in place (Homebrew and Sparkle), one at a time
