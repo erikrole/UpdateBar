@@ -60,7 +60,9 @@ struct UpdateBarView: View {
 
     private var headline: String {
         switch store.pendingCount {
-        case 0: store.lastChecked == nil ? "Checking for updates" : "Everything is up to date"
+        case 0:
+            store.lastChecked == nil ? "Checking for updates"
+                : (store.requestedTools.isEmpty && store.dependencyTools.isEmpty ? "Everything is up to date" : "Only rebuilds waiting")
         case 1: "1 update available"
         default: "\(store.pendingCount) updates available"
         }

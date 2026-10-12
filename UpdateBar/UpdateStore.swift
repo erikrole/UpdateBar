@@ -64,12 +64,21 @@ final class UpdateStore {
         showsTools = defaults.object(forKey: Keys.showsTools) as? Bool ?? true
     }
 
-    /// Tools you installed yourself; dependencies are upgraded along with them.
-    var requestedTools: [ToolUpdate] { showsTools ? tools.filter(\.requested) : [] }
+    /// Tools you installed yourself, real releases before rebuilds; dependencies are
+    /// upgraded along with them.
+    var requestedTools: [ToolUpdate] {
+        guard showsTools else { return [] }
+        let requested = tools.filter(\.requested)
+        return requested.filter { !$0.isRebuild } + requested.filter(\.isRebuild)
+    }
     var dependencyTools: [ToolUpdate] { showsTools ? tools.filter { !$0.requested } : [] }
 
-    /// What the menu bar count shows: app updates plus tools you installed yourself.
-    var pendingCount: Int { rows.count + requestedTools.count }
+    /// Your tools with a new upstream release. Rebuilds of the same release are listed
+    /// but don't count toward the badge or trigger notifications.
+    var newReleaseTools: [ToolUpdate] { requestedTools.filter { !$0.isRebuild } }
+
+    /// What the menu bar count shows: app updates plus new releases of your tools.
+    var pendingCount: Int { rows.count + newReleaseTools.count }
 
     /// Sparkle apps whose feeds publish betas, for the beta toggles.
     var betaCapableApps: [InstalledApp] {
@@ -324,8 +333,8 @@ final class UpdateStore {
 
     private func notifyAboutNewUpdates() {
         let pending: [(id: String, name: String)] = rows.map { ($0.update.id, $0.app.name) }
-            + requestedTools.map { ($0.notificationID, $0.name) }
-        let freshTools = requestedTools.filter { !notifiedUpdateIDs.contains($0.notificationID) }
+            + newReleaseTools.map { ($0.notificationID, $0.name) }
+        let freshTools = newReleaseTools.filter { !notifiedUpdateIDs.contains($0.notificationID) }
         let fresh = rows.filter { !notifiedUpdateIDs.contains($0.update.id) }
         let pendingIDs = Set(pending.map(\.id))
         notifiedUpdateIDs.formUnion(pendingIDs)
