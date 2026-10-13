@@ -280,12 +280,16 @@ final class JSONCursor {
     }
 
     private func expectLiteral(_ literal: StaticString) throws {
-        var offset = 0
-        for byte in literal.utf8 {
-            guard index + offset < bytes.count, bytes[index + offset] == byte else { throw JSONParseError() }
-            offset += 1
+        // StaticString has no `utf8` view. Read the code units through the buffer.
+        let matched = literal.withUTF8Buffer { buffer -> Int in
+            guard index + buffer.count <= bytes.count else { return -1 }
+            for offset in 0..<buffer.count {
+                if bytes[index + offset] != buffer[offset] { return -1 }
+            }
+            return buffer.count
         }
-        index += offset
+        guard matched >= 0 else { throw JSONParseError() }
+        index += matched
     }
 
     private func skipString() throws {
