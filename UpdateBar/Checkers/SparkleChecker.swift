@@ -61,9 +61,14 @@ struct SparkleChecker: UpdateChecker {
         let system = "\(systemVersion.majorVersion).\(systemVersion.minorVersion).\(systemVersion.patchVersion)"
         return items
             .filter { includeBetas || !$0.isPrerelease }
+            .filter { $0.operatingSystem == nil || $0.operatingSystem == "macos" }
             .filter { item in
                 guard let minimum = item.minimumSystemVersion else { return true }
                 return VersionComparator.compare(system, to: minimum) != .older
+            }
+            .filter { item in
+                guard let maximum = item.maximumSystemVersion else { return true }
+                return VersionComparator.compare(system, to: maximum) != .newer
             }
             .filter { $0.version != nil || $0.shortVersion != nil }
             .max { lhs, rhs in
@@ -113,6 +118,8 @@ struct AppcastItem: Equatable, Sendable {
     var version: String?
     var shortVersion: String?
     var minimumSystemVersion: String?
+    var maximumSystemVersion: String?
+    var operatingSystem: String?
     var channel: String?
     var publishedAt: Date?
     var notes: String?
@@ -137,13 +144,15 @@ final class AppcastParser: NSObject, XMLParserDelegate {
     private var items: [AppcastItem] = []
     private var current: AppcastItem?
     private var text = ""
+    private var elements: [String] = []
+    private let dateFormatter = DateFormatter()
 
     static func parse(_ data: Data) -> [AppcastItem] {
         let delegate = AppcastParser()
         let parser = XMLParser(data: data)
         parser.shouldProcessNamespaces = false
         parser.delegate = delegate
-        parser.parse()
+        guard parser.parse() else { return [] }
         return delegate.items
     }
 
@@ -154,14 +163,19 @@ final class AppcastParser: NSObject, XMLParserDelegate {
         qualifiedName qName: String?,
         attributes: [String: String] = [:]
     ) {
+        let parent = elements.last
+        elements.append(elementName)
         text = ""
-        if elementName == "item" {
+        if elementName == "item", parent == "channel" {
             current = AppcastItem()
-        } else if elementName == "enclosure", current != nil {
+        } else if elementName == "enclosure", parent == "item", current != nil,
+                  attributes["sparkle:deltaFrom"] == nil {
             if let url = attributes["url"].flatMap(URL.init(string:)) { current?.downloadURL = url }
             if let version = attributes["sparkle:version"] { current?.version = version }
             if let short = attributes["sparkle:shortVersionString"] { current?.shortVersion = short }
             if let minimum = attributes["sparkle:minimumSystemVersion"] { current?.minimumSystemVersion = minimum }
+            if let maximum = attributes["sparkle:maximumSystemVersion"] { current?.maximumSystemVersion = maximum }
+            current?.operatingSystem = attributes["sparkle:os"]
         }
     }
 
@@ -180,8 +194,8 @@ final class AppcastParser: NSObject, XMLParserDelegate {
         qualifiedName qName: String?
     ) {
         let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        defer { text = "" }
-        guard current != nil else { return }
+        defer { text = ""; elements.removeLast() }
+        guard current != nil, elementName == "item" || elements.dropLast().last == "item" else { return }
         switch elementName {
         case "item":
             if let current { items.append(current) }
@@ -190,17 +204,18 @@ final class AppcastParser: NSObject, XMLParserDelegate {
         case "sparkle:version": current?.version = value.nilIfEmpty
         case "sparkle:shortVersionString": current?.shortVersion = value.nilIfEmpty
         case "sparkle:minimumSystemVersion": current?.minimumSystemVersion = value.nilIfEmpty
+        case "sparkle:maximumSystemVersion": current?.maximumSystemVersion = value.nilIfEmpty
         case "sparkle:channel": current?.channel = value.nilIfEmpty
         case "sparkle:releaseNotesLink", "sparkle:fullReleaseNotesLink":
             if current?.releaseNotesURL == nil { current?.releaseNotesURL = URL(string: value) }
         case "description": current?.notes = value.nilIfEmpty
-        case "pubDate": current?.publishedAt = Self.parseDate(value)
+        case "pubDate": current?.publishedAt = parseDate(value)
         default: break
         }
     }
 
-    private static func parseDate(_ value: String) -> Date? {
-        let formatter = DateFormatter()
+    private func parseDate(_ value: String) -> Date? {
+        let formatter = dateFormatter
         formatter.locale = Locale(identifier: "en_US_POSIX")
         for format in ["EEE, dd MMM yyyy HH:mm:ss Z", "EEE, d MMM yyyy HH:mm:ss Z", "EEE, dd MMM yyyy HH:mm:ss zzz", "yyyy-MM-dd'T'HH:mm:ssZ"] {
             formatter.dateFormat = format

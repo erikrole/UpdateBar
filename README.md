@@ -39,12 +39,16 @@ Requirements: macOS 14 or later, Xcode, and XcodeGen.
 
 ```sh
 xcodegen generate
-xcodebuild -project UpdateBar.xcodeproj -scheme UpdateBar -configuration Debug CODE_SIGNING_ALLOWED=NO build
-open ~/Library/Developer/Xcode/DerivedData/UpdateBar-*/Build/Products/Debug/UpdateBar.app
+./script/build_and_run.sh --verify
 ```
 
-`UpdateBar --report` runs one check, prints what it found and exits, which is the
-quickest way to debug a wrong result:
+The Codex Run action uses the same script. It quits the running UpdateBar, builds
+into `build/dd`, and launches that local build. Run it when no app/tool installation
+is active. Optional `--debug`, `--logs`, and `--telemetry` modes support diagnosis.
+It does not replace your installed copy or produce a notarized release.
+
+`UpdateBar --report` runs one check, prints what it found and exits without
+notifications or changes to notification history:
 
 ```sh
 UpdateBar.app/Contents/MacOS/UpdateBar --report
@@ -53,13 +57,32 @@ UpdateBar.app/Contents/MacOS/UpdateBar --install <bundle ID>   # installs one pe
 
 Homebrew's cask (~20 MB) and formula (~30 MB) indexes are cached in
 `~/Library/Application Support/UpdateBar/` and revalidated with their ETag at
-most every ten minutes.
+most every ten minutes. Repeat checks reuse decoded indexes within that freshness
+window; failed revalidation shows a warning while using a valid cached copy.
+Platform-specific Homebrew variations are applied for this Mac. Only the Homebrew
+prefix used by the installer is scanned, and app ownership is checked against
+resolved Caskroom artifacts. Hiding command-line tools also skips their scan.
+
+App and tool installers share one reservation, including all queued apps in a
+batch. Concurrent refresh requests share work; changes during a check trigger a
+follow-up pass. Sparkle checks exclude non-Mac releases, releases outside their
+minimum/maximum macOS range, nested delta enclosures, and malformed appcasts.
 
 ## Test
 
 ```sh
-xcodebuild -project UpdateBar.xcodeproj -scheme UpdateBar -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO test
+xcodebuild -project UpdateBar.xcodeproj -scheme UpdateBar -destination 'platform=macOS' -derivedDataPath build/dd CODE_SIGNING_ALLOWED=NO test
 ```
+
+To benchmark uncached versus warm index loading using your existing local index
+files (no network requests or installations):
+
+```sh
+./script/benchmark_indexes.sh
+```
+
+See [the audit and verification notes](docs/audit-2026-10-12.md) for the scope,
+measurements, and remaining boundaries of the reliability/performance pass.
 
 ## Releases
 

@@ -211,7 +211,7 @@ final class HomebrewTests: XCTestCase {
 
     func testBrewInstalledCaskIsAuthoritativeAndUpgradable() throws {
         let iina = app("com.colliderli.iina", name: "IINA", short: "1.4.4")
-        let result = HomebrewChecker.evaluate([iina], casks: casks, installed: ["iina": "1.4.4"])
+        let result = HomebrewChecker.evaluate([iina], casks: casks, installed: ["iina": [iina.url]])
         let update = try XCTUnwrap(result.updates.first)
         XCTAssertEqual(update.action, .brewUpgrade(token: "iina"))
         XCTAssertTrue(result.isCovered("com.colliderli.iina", by: .homebrew))
@@ -219,7 +219,7 @@ final class HomebrewTests: XCTestCase {
 
     func testSelfUpdatedCaskIsNotFlagged() {
         let iina = app("com.colliderli.iina", name: "IINA", short: "1.5.0")
-        let result = HomebrewChecker.evaluate([iina], casks: casks, installed: ["iina": "1.4.4"])
+        let result = HomebrewChecker.evaluate([iina], casks: casks, installed: ["iina": [iina.url]])
         XCTAssertTrue(result.updates.isEmpty)
     }
 

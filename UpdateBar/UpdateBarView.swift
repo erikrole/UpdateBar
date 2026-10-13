@@ -68,20 +68,12 @@ struct UpdateBarView: View {
         .padding(.vertical, 12)
     }
 
-    private var headline: String {
-        switch store.pendingCount {
-        case 0:
-            store.lastChecked == nil ? "Checking for updates"
-                : (store.requestedTools.isEmpty && store.dependencyTools.isEmpty ? "Everything is up to date" : "Only rebuilds waiting")
-        case 1: "1 update available"
-        default: "\(store.pendingCount) updates available"
-        }
-    }
+    private var headline: String { store.statusSummary }
 
     private var subheadline: String {
         guard let lastChecked = store.lastChecked else { return "Scanning your apps…" }
         let relative = lastChecked.formatted(.relative(presentation: .named))
-        return "\(store.appCount) apps checked \(relative)"
+        return "\(store.appCount) apps scanned · \(relative)"
     }
 
     private var footer: some View {
@@ -91,6 +83,7 @@ struct UpdateBarView: View {
                     store.updateAllInPlace()
                 }
                 .controlSize(.small)
+                .disabled(!store.canInstallUpdates || store.isChecking)
             }
             Spacer()
             Button("Quit") { NSApp.terminate(nil) }
@@ -109,10 +102,10 @@ struct UpdateBarView: View {
         if store.rows.isEmpty && store.requestedTools.isEmpty && store.dependencyTools.isEmpty {
             VStack(spacing: 8) {
                 Spacer()
-                Image(systemName: store.lastChecked == nil ? "hourglass" : "checkmark.circle")
+                Image(systemName: store.lastChecked == nil ? "hourglass" : (store.failures.isEmpty ? "checkmark.circle" : "exclamationmark.triangle"))
                     .font(.system(size: 32, weight: .light))
                     .foregroundStyle(.secondary)
-                Text(store.lastChecked == nil ? "Looking for updates…" : "No updates right now")
+                Text(store.lastChecked == nil ? "Looking for updates…" : (store.failures.isEmpty ? "No updates right now" : "Check incomplete"))
                     .foregroundStyle(.secondary)
                 if !store.failures.isEmpty {
                     failureDisclosure.padding(.horizontal, 16)
@@ -128,6 +121,7 @@ struct UpdateBarView: View {
                             row: row,
                             isExpanded: expanded == row.id,
                             isRunning: store.runningActions.contains(row.id),
+                            canInstall: store.canInstallUpdates && !store.isChecking,
                             message: store.actionMessages[row.id],
                             toggle: { expanded = expanded == row.id ? nil : row.id },
                             perform: { store.perform(row) },
@@ -158,6 +152,7 @@ struct UpdateBarView: View {
                 if store.toolRun == nil {
                     Button("Upgrade all (\(store.tools.count))") { store.upgradeAllTools() }
                         .controlSize(.small)
+                        .disabled(!store.canInstallUpdates || store.isChecking)
                 }
             }
             .padding(.horizontal, 16)
@@ -178,6 +173,10 @@ struct UpdateBarView: View {
                 .padding(.bottom, 6)
             }
 
+            if let notice = store.toolNotice {
+                Text(notice).font(.caption).foregroundStyle(.secondary).padding(.horizontal, 16)
+            }
+
             if let message = store.actionMessages[UpdateStore.allToolsID] {
                 Text(message)
                     .font(.caption)
@@ -190,7 +189,7 @@ struct UpdateBarView: View {
                 ToolRow(
                     tool: tool,
                     stage: store.stage(of: tool),
-                    canUpgrade: store.toolRun == nil,
+                    canUpgrade: store.canInstallUpdates && !store.isChecking,
                     message: store.actionMessages["formula|\(tool.name)"],
                     upgrade: { store.upgrade(tool) }
                 )
@@ -245,6 +244,7 @@ private struct UpdateRow: View {
     let row: AppUpdate
     let isExpanded: Bool
     let isRunning: Bool
+    let canInstall: Bool
     let message: String?
     let toggle: () -> Void
     let perform: () -> Void
@@ -254,9 +254,7 @@ private struct UpdateRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 10) {
-                Image(nsImage: NSWorkspace.shared.icon(forFile: row.app.url.path))
-                    .resizable()
-                    .frame(width: 32, height: 32)
+                AppIcon(app: row.app)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(row.app.name).font(.body.weight(.medium)).lineLimit(1)
@@ -285,6 +283,7 @@ private struct UpdateRow: View {
                 } else {
                     Button(actionTitle, action: perform)
                         .controlSize(.small)
+                        .disabled(row.installsInPlace && !canInstall)
                 }
             }
             .contentShape(Rectangle())
@@ -523,5 +522,35 @@ private struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(maxHeight: .infinity)
+    }
+}
+
+/// Load an icon once per app/version, outside SwiftUI body evaluation. Progress
+/// messages can redraw a row frequently without repeating Launch Services I/O.
+@MainActor
+private struct AppIcon: View {
+    let app: InstalledApp
+    @State private var icon: NSImage?
+    private static let cache: NSCache<NSString, NSImage> = {
+        let cache = NSCache<NSString, NSImage>()
+        cache.countLimit = 128
+        return cache
+    }()
+
+    var body: some View {
+        Group {
+            if let icon { Image(nsImage: icon).resizable() }
+            else { Image(systemName: "app").resizable().foregroundStyle(.secondary) }
+        }
+        .frame(width: 32, height: 32)
+        .task(id: app) {
+            let key = "\(app.url.path)|\(app.displayVersion)|\(app.buildVersion ?? "")" as NSString
+            if let cached = Self.cache.object(forKey: key) { icon = cached }
+            else {
+                let loaded = NSWorkspace.shared.icon(forFile: app.url.path)
+                Self.cache.setObject(loaded, forKey: key)
+                icon = loaded
+            }
+        }
     }
 }

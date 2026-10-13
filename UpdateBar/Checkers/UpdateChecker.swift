@@ -44,8 +44,11 @@ struct HTTPClient: Sendable {
         configuration.timeoutIntervalForRequest = timeout
         configuration.timeoutIntervalForResource = timeout * 3
         configuration.httpAdditionalHeaders = ["User-Agent": "UpdateBar/\(Self.appVersion)"]
-        session = URLSession(configuration: configuration)
+        configuration.httpShouldSetCookies = false
+        session = URLSession(configuration: configuration, delegate: HTTPSRedirectDelegate(), delegateQueue: nil)
     }
+
+    init(session: URLSession) { self.session = session }
 
     enum HTTPError: LocalizedError {
         case insecure(URL)
@@ -69,11 +72,13 @@ struct HTTPClient: Sendable {
             guard let upgraded = components?.url else { throw HTTPError.insecure(url) }
             target = upgraded
         }
+        guard target.scheme?.lowercased() == "https", target.host != nil else { throw HTTPError.insecure(url) }
         var request = URLRequest(url: target)
         for (field, value) in headers { request.setValue(value, forHTTPHeaderField: field) }
         do {
             let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse else { throw HTTPError.status(0) }
+            guard http.url?.scheme?.lowercased() == "https" else { throw HTTPError.insecure(http.url ?? target) }
             return (data, http)
         } catch let error as URLError where target != url {
             // The HTTPS upgrade failed outright; say so plainly instead of falling back to HTTP.
@@ -88,6 +93,16 @@ struct HTTPClient: Sendable {
 
     private static var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "dev"
+    }
+}
+
+/// Refuse HTTPS → HTTP redirects before making the insecure request.
+final class HTTPSRedirectDelegate: NSObject, URLSessionTaskDelegate {
+    func urlSession(_ session: URLSession, task: URLSessionTask,
+                    willPerformHTTPRedirection response: HTTPURLResponse,
+                    newRequest request: URLRequest,
+                    completionHandler: @escaping @Sendable (URLRequest?) -> Void) {
+        completionHandler(request.url?.scheme?.lowercased() == "https" ? request : nil)
     }
 }
 

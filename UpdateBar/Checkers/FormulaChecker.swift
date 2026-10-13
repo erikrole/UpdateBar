@@ -28,14 +28,9 @@ struct ToolUpdate: Identifiable, Hashable, Sendable {
 /// Pinned formulae and HEAD builds are left alone, as `brew upgrade` would.
 struct FormulaChecker: Sendable {
     var index = IndexCache.homebrew("formula")
-    var cellars: [URL] = [
-        URL(filePath: "/opt/homebrew/Cellar", directoryHint: .isDirectory),
-        URL(filePath: "/usr/local/Cellar", directoryHint: .isDirectory),
-    ]
-    var pinnedFolders: [URL] = [
-        URL(filePath: "/opt/homebrew/var/homebrew/pinned", directoryHint: .isDirectory),
-        URL(filePath: "/usr/local/var/homebrew/pinned", directoryHint: .isDirectory),
-    ]
+    var cellars: [URL] = HomebrewPlatform.folders("Cellar")
+    var pinnedFolders: [URL] = HomebrewPlatform.folders("var/homebrew/pinned")
+    private static let decodedIndex = DecodedIndex<[Formula]>()
 
     struct Installed: Equatable, Sendable {
         let versions: [String]
@@ -56,16 +51,17 @@ struct FormulaChecker: Sendable {
         let installed = Self.installedFormulae(in: cellars)
         guard !installed.isEmpty else { return ([], []) }
         do {
-            let formulae = try Self.decode(try await index.load())
+            let snapshot = try await Self.decodedIndex.load(from: index) { try Self.decode($0) }
             let pinned = Self.pinnedFormulae(in: pinnedFolders)
-            return (Self.evaluate(installed: installed, formulae: formulae, pinned: pinned), [])
+            let failures = snapshot.warning.map { [CheckFailure(source: .homebrew, subject: "Command-line tools", message: $0)] } ?? []
+            return (Self.evaluate(installed: installed, formulae: snapshot.value, pinned: pinned), failures)
         } catch {
             return ([], [CheckFailure(source: .homebrew, subject: "Command-line tools", message: error.localizedDescription)])
         }
     }
 
-    static func decode(_ data: Data) throws -> [Formula] {
-        guard let array = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
+    static func decode(_ data: Data, platform: String = HomebrewPlatform.tag) throws -> [Formula] {
+        let array = try HomebrewPlatform.records(data, tag: platform)
         return array.compactMap { json in
             guard let name = json["name"] as? String,
                   let versions = json["versions"] as? [String: Any],

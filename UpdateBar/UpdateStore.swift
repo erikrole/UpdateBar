@@ -36,14 +36,32 @@ final class UpdateStore {
     /// Apps opted into pre-release (beta) updates.
     private(set) var betaApps: Set<String>
     var showsTools: Bool {
-        didSet { defaults.set(showsTools, forKey: Keys.showsTools) }
+        didSet {
+            defaults.set(showsTools, forKey: Keys.showsTools)
+            if showsTools != oldValue { Task { await checkNow(refreshAfterCurrent: true) } }
+        }
     }
 
     private var lastResult = CheckerResult()
     private var installedApps: [InstalledApp] = []
     private var notifiedUpdateIDs: Set<String>
     private var timer: Timer?
-    private let defaults = UserDefaults.standard
+    @ObservationIgnored private var checkTask: Task<Void, Never>?
+    @ObservationIgnored private var activeAppID: String?
+    @ObservationIgnored private var toolRunID: UUID?
+    @ObservationIgnored private var refreshRequested = false
+    @ObservationIgnored private var shouldNotifyForCheck = false
+    private let defaults: UserDefaults
+    private let collect: @Sendable (Set<String>, [String: String], Bool) async -> CheckSnapshot
+    private let installApp: @MainActor (AppUpdate, Set<String>, @escaping @MainActor (String) -> Void) async -> String?
+    private let installTools: @Sendable ([String], @escaping @Sendable (BrewOutputParser.Event) -> Void) async -> BrewRunner.Outcome
+
+    struct CheckSnapshot: Sendable {
+        var apps: [InstalledApp] = []
+        var result = CheckerResult()
+        var tools: [ToolUpdate] = []
+        var toolFailures: [CheckFailure] = []
+    }
 
     private enum Keys {
         static let interval = "checkIntervalHours"
@@ -57,7 +75,18 @@ final class UpdateStore {
         static let showsTools = "showsCommandLineTools"
     }
 
-    init() {
+    init(
+        defaults: UserDefaults = .standard,
+        collect: @escaping @Sendable (Set<String>, [String: String], Bool) async -> CheckSnapshot = UpdateStore.collectUpdates,
+        installApp: @escaping @MainActor (AppUpdate, Set<String>, @escaping @MainActor (String) -> Void) async -> String? = UpdateStore.installUpdate,
+        installTools: @escaping @Sendable ([String], @escaping @Sendable (BrewOutputParser.Event) -> Void) async -> BrewRunner.Outcome = { names, progress in
+            await BrewRunner.upgrade(formulae: names, onEvent: progress)
+        }
+    ) {
+        self.defaults = defaults
+        self.collect = collect
+        self.installApp = installApp
+        self.installTools = installTools
         checkIntervalHours = defaults.object(forKey: Keys.interval) as? Int ?? 6
         notificationsEnabled = defaults.object(forKey: Keys.notifications) as? Bool ?? true
         ignoredApps = Set(defaults.stringArray(forKey: Keys.ignored) ?? [])
@@ -84,6 +113,15 @@ final class UpdateStore {
     /// What the menu bar count shows: app updates plus new releases of your tools.
     var pendingCount: Int { rows.count + newReleaseTools.count }
 
+    var statusSummary: String {
+        if isChecking && lastChecked == nil { return "Checking for updates" }
+        if pendingCount > 0 { return "\(pendingCount) update\(pendingCount == 1 ? "" : "s") available" }
+        if !failures.isEmpty { return "Some updates couldn’t be checked" }
+        if lastChecked == nil { return "Waiting to check for updates" }
+        if !requestedTools.isEmpty || !dependencyTools.isEmpty { return "Tool maintenance available" }
+        return "Everything is up to date"
+    }
+
     /// Sparkle apps whose feeds publish betas, for the beta toggles.
     var betaCapableApps: [InstalledApp] {
         installedApps.filter { app in
@@ -98,12 +136,12 @@ final class UpdateStore {
     func setBeta(_ enabled: Bool, for bundleIdentifier: String) {
         if enabled { betaApps.insert(bundleIdentifier) } else { betaApps.remove(bundleIdentifier) }
         defaults.set(Array(betaApps), forKey: Keys.betaApps)
-        Task { await checkNow() }
+        Task { await checkNow(refreshAfterCurrent: true) }
     }
 
     /// Channels Sparkle may install from: the feed's stable-named channels always,
     /// and its pre-release channels only when you opted the app into betas.
-    private func betaChannels(for bundleIdentifier: String) -> Set<String> {
+    func betaChannels(for bundleIdentifier: String) -> Set<String> {
         let channels = lastResult.feedChannels[bundleIdentifier] ?? []
         if betaApps.contains(bundleIdentifier) { return channels }
         return channels.filter { !AppcastItem.isPrereleaseChannel($0) }
@@ -117,39 +155,58 @@ final class UpdateStore {
 
     // MARK: - Checking
 
-    func checkNow() async {
-        guard !isChecking else { return }
+    /// Ordinary requests share a running check. Preference changes and completed
+    /// installs request one more pass so an older in-flight snapshot cannot win.
+    func checkNow(refreshAfterCurrent: Bool = false, notify: Bool = true) async {
+        shouldNotifyForCheck = shouldNotifyForCheck || notify
+        if let checkTask {
+            refreshRequested = refreshRequested || refreshAfterCurrent
+            await checkTask.value
+            return
+        }
         isChecking = true
-        defer { isChecking = false }
+        let task = Task {
+            repeat {
+                refreshRequested = false
+                let repositories = defaults.dictionary(forKey: Keys.repositories) as? [String: String] ?? [:]
+                let snapshot = await collect(betaApps, repositories, showsTools)
+                // A setting changed during the fetch. Do not publish its obsolete result.
+                guard !refreshRequested else { continue }
+                installedApps = snapshot.apps
+                appCount = snapshot.apps.count
+                lastResult = snapshot.result
+                tools = snapshot.tools
+                failures = (snapshot.result.failures + snapshot.toolFailures)
+                    .sorted { ($0.source, $0.subject) < ($1.source, $1.subject) }
+                lastChecked = Date()
+                resolve()
+                if shouldNotifyForCheck { notifyAboutNewUpdates() }
+            } while refreshRequested
+            shouldNotifyForCheck = false
+            isChecking = false
+            checkTask = nil
+        }
+        checkTask = task
+        await task.value
+    }
 
+    nonisolated private static func collectUpdates(
+        betaApps: Set<String>, repositories: [String: String], showsTools: Bool
+    ) async -> CheckSnapshot {
         let apps = await Task.detached(priority: .utility) { AppScanner().scan() }.value
-        installedApps = apps
-        appCount = apps.count
-
-        let repositories = defaults.dictionary(forKey: Keys.repositories) as? [String: String] ?? [:]
         let checkers: [any UpdateChecker] = [
-            AppStoreChecker(),
-            SparkleChecker(betaApps: betaApps),
-            HomebrewChecker(),
-            GitHubChecker(repositories: repositories),
+            AppStoreChecker(), SparkleChecker(betaApps: betaApps),
+            HomebrewChecker(), GitHubChecker(repositories: repositories),
         ]
-        async let formulae = FormulaChecker().check()
+        async let formulae = showsTools ? FormulaChecker().check() : (tools: [], failures: [])
         let combined = await withTaskGroup(of: CheckerResult.self) { group in
-            for checker in checkers {
-                group.addTask { await checker.check(apps) }
-            }
+            for checker in checkers { group.addTask { await checker.check(apps) } }
             var combined = CheckerResult()
             for await result in group { combined.merge(result) }
             return combined
         }
         let toolResult = await formulae
-
-        lastResult = combined
-        tools = toolResult.tools
-        failures = (combined.failures + toolResult.failures).sorted { ($0.source, $0.subject) < ($1.source, $1.subject) }
-        lastChecked = Date()
-        resolve()
-        notifyAboutNewUpdates()
+        return CheckSnapshot(apps: apps, result: combined, tools: toolResult.tools, toolFailures: toolResult.failures)
     }
 
     private func resolve() {
@@ -204,42 +261,11 @@ final class UpdateStore {
 
     func perform(_ row: AppUpdate) {
         let id = row.id
+        guard !row.installsInPlace || canInstallUpdates else { return }
         actionMessages[id] = nil
         switch row.update.action {
-        case let .brewUpgrade(token):
-            runningActions.insert(id)
-            actionMessages[id] = "Starting brew…"
-            Task {
-                let outcome = await BrewRunner.upgrade(cask: token) { [weak self] event in
-                    Task { @MainActor in
-                        guard event.stage != .done else { return }
-                        self?.actionMessages[id] = "\(event.stage.label)…"
-                    }
-                }
-                runningActions.remove(id)
-                switch outcome {
-                case .success:
-                    actionMessages[id] = nil
-                    await checkNow()
-                case let .failure(message):
-                    actionMessages[id] = message
-                }
-            }
-        case .sparkleInstall:
-            runningActions.insert(id)
-            Task {
-                let outcome = await SparkleInstaller.install(row.app, channels: betaChannels(for: row.app.bundleIdentifier)) { [weak self] status in
-                    self?.actionMessages[id] = status
-                }
-                runningActions.remove(id)
-                switch outcome {
-                case .installed:
-                    actionMessages[id] = nil
-                    await checkNow()
-                case let .failure(message):
-                    actionMessages[id] = message
-                }
-            }
+        case .brewUpgrade, .sparkleInstall:
+            installUpdates([row])
         case .openAppStore:
             NSWorkspace.shared.open(URL(string: "macappstore://apps.apple.com/updates")!)
         case .launchApp:
@@ -277,32 +303,51 @@ final class UpdateStore {
 
     /// Runs every update that installs in place (Homebrew and Sparkle), one at a time
     /// so brew doesn't lock against itself and installers don't compete.
+    var canInstallUpdates: Bool { runningActions.isEmpty }
+
     func updateAllInPlace() {
-        let targets = rows.filter(\.installsInPlace)
-        guard !targets.isEmpty else { return }
+        installUpdates(rows.filter(\.installsInPlace))
+    }
+
+    private func installUpdates(_ targets: [AppUpdate]) {
+        guard canInstallUpdates, !targets.isEmpty else { return }
+        // Reserve the entire batch before yielding: buttons and queued tasks cannot
+        // start a second installer or a competing Homebrew formula upgrade.
+        runningActions.formUnion(targets.map(\.id))
+        for row in targets { actionMessages[row.id] = "Waiting…" }
         Task {
             for row in targets {
-                runningActions.insert(row.id)
-                switch row.update.action {
-                case let .brewUpgrade(token):
-                    if case let .failure(message) = await BrewRunner.upgrade(cask: token) {
-                        actionMessages[row.id] = message
-                    }
-                case .sparkleInstall:
-                    let outcome = await SparkleInstaller.install(row.app, channels: betaChannels(for: row.app.bundleIdentifier)) { [weak self] status in
-                        self?.actionMessages[row.id] = status
-                    }
-                    switch outcome {
-                    case .installed: actionMessages[row.id] = nil
-                    case let .failure(message): actionMessages[row.id] = message
-                    }
-                default:
-                    break
+                activeAppID = row.id
+                actionMessages[row.id] = "Starting update…"
+                let message = await installApp(row, betaChannels(for: row.id)) { status in
+                    guard self.activeAppID == row.id else { return }
+                    self.actionMessages[row.id] = status
                 }
-                runningActions.remove(row.id)
+                activeAppID = nil
+                actionMessages[row.id] = message
+                // Keep the batch reserved until every installer has finished.
             }
-            await checkNow()
+            runningActions.subtract(targets.map(\.id))
+            await checkNow(refreshAfterCurrent: true)
         }
+    }
+
+    private static func installUpdate(
+        _ row: AppUpdate, channels: Set<String>, progress: @escaping @MainActor (String) -> Void
+    ) async -> String? {
+        switch row.update.action {
+        case let .brewUpgrade(token):
+            let outcome = await BrewRunner.upgrade(cask: token) { event in
+                Task { @MainActor in progress("\(event.stage.label)…") }
+            }
+            if case let .failure(message) = outcome { return message }
+        case .sparkleInstall:
+            if case let .failure(message) = await SparkleInstaller.install(row.app, channels: channels, progress: progress) {
+                return message
+            }
+        default: break
+        }
+        return nil
     }
 
     var inPlaceUpdateCount: Int {
@@ -323,15 +368,21 @@ final class UpdateStore {
     }
 
     private func upgradeTools(_ names: [String], actionID: String) {
-        guard !names.isEmpty, toolRun == nil else { return }
+        guard !names.isEmpty, canInstallUpdates else { return }
         actionMessages[actionID] = nil
         toolNotice = nil
         runningActions.insert(actionID)
         toolRun = BrewRunProgress(names: names)
+        let runID = UUID()
+        toolRunID = runID
         Task {
-            let outcome = await BrewRunner.upgrade(formulae: names) { [weak self] event in
-                Task { @MainActor in self?.toolRun?.apply(event) }
+            let outcome = await installTools(names) { event in
+                Task { @MainActor in
+                    guard self.toolRunID == runID else { return }
+                    self.toolRun?.apply(event)
+                }
             }
+            toolRunID = nil
             runningActions.remove(actionID)
             let finished = toolRun?.finished ?? 0
             toolRun = nil
@@ -347,7 +398,7 @@ final class UpdateStore {
                 actionMessages[actionID] = message
                 if finished > 0 { toolNotice = "Upgraded \(finished) of \(names.count) before brew stopped" }
             }
-            await checkNow()
+            await checkNow(refreshAfterCurrent: true)
         }
     }
 

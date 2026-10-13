@@ -22,6 +22,7 @@
 		AB920BADF055526840251AA1 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 422767A185DF56A59314595D /* Models.swift */; };
 		B09EFA8CBF4DAC6BE63D0582 /* UpdateBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A524B9E8B2059D0E778E4F18 /* UpdateBarApp.swift */; };
 		B83DE0BB936F0A9447C76100 /* UpdateBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C74D674E6BED3502B6384FEC /* UpdateBarView.swift */; };
+		BDFB87614A9B9A5EAE25EFEE /* AuditRegressionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2A557F21BFBD77F3336ECAA /* AuditRegressionTests.swift */; };
 		C4FBEE19D1F5D16ADE60CBFF /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = DB8225BE54B9D3C33C3FAFC8 /* Sparkle */; };
 		D7FB5B02346D5AA88FC3E556 /* SparkleInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17F08557CC0A48FFA69C5E67 /* SparkleInstaller.swift */; };
 		E2A5852F2016B67F7F1EB3B3 /* IndexCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DA38C0307FF8C255BD33091 /* IndexCache.swift */; };
@@ -57,6 +58,7 @@
 		8529FB7C8EE54F21E4A1F432 /* BrewProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrewProgress.swift; sourceTree = "<group>"; };
 		87CCCFF05642CF69E6AF4D7D /* UpdateResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateResolver.swift; sourceTree = "<group>"; };
 		9F0E409103E781AFF9B31C3F /* HomebrewChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomebrewChecker.swift; sourceTree = "<group>"; };
+		A2A557F21BFBD77F3336ECAA /* AuditRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditRegressionTests.swift; sourceTree = "<group>"; };
 		A524B9E8B2059D0E778E4F18 /* UpdateBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateBarApp.swift; sourceTree = "<group>"; };
 		AC5490F5D1A4740AD7E4C9F5 /* AppScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppScanner.swift; sourceTree = "<group>"; };
 		BD8D272453B3FE46C34D2899 /* VersionComparator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionComparator.swift; sourceTree = "<group>"; };
@@ -113,6 +115,7 @@
 		D02E1BE9B2CAB99088BCCDED /* UpdateBarTests */ = {
 			isa = PBXGroup;
 			children = (
+				A2A557F21BFBD77F3336ECAA /* AuditRegressionTests.swift */,
 				64A96FB79FC2626CFE5783B8 /* BrewProgressTests.swift */,
 				2263EA0DD4F1E26D1047BF59 /* CheckerTests.swift */,
 				DC283181845BE799B947F3CF /* VersionComparatorTests.swift */,
@@ -225,6 +228,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BDFB87614A9B9A5EAE25EFEE /* AuditRegressionTests.swift in Sources */,
 				45C7C2928EEAF34541769588 /* BrewProgressTests.swift in Sources */,
 				5269B7A5C5ADEF9370E4BD1D /* CheckerTests.swift in Sources */,
 				F91A72F5E9BA11B33F53F0D7 /* VersionComparatorTests.swift in Sources */,

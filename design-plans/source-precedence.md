@@ -7,7 +7,7 @@ authoritative for and answered about (`covered`).
 |---|---|---|
 | App Store | apps with `_MASReceipt` | — |
 | Sparkle | apps with `SUFeedURL` whose feed answered | — |
-| Homebrew | casks present in the Caskroom | other apps whose bundle name matches exactly one cask (bundle ID must agree when the cask names one, and the major version must be within 5) |
+| Homebrew | casks whose installed app artifacts resolve to the scanned app path | other apps whose bundle name matches exactly one cask (bundle ID must agree when the cask names one, and the major version must be within 5) |
 | GitHub | apps with a linked repo that has a release | — |
 
 `UpdateResolver` picks, per app, the highest-ranked covering source. If it found
@@ -27,7 +27,8 @@ that ship an EdDSA key get the in-place Update button; the rest open the app.
 
 `SilentUserDriver` answers Sparkle the way a person pressing Install would and
 reports progress to the row. Sparkle quits a running app, installs, and relaunches
-it only if it was open before. Stable channel only. If an app lives in a
+it only if it was open before. Stable channels by default; prerelease channels are allowed only for apps opted
+into betas, including command-line installs. If an app lives in a
 root-owned location, Sparkle's own installer asks for an admin password;
 UpdateBar has no privileged helper of its own.
 

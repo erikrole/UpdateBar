@@ -73,8 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func observeStore() {
         withObservationTracking {
-            _ = store.pendingCount
-            _ = store.isChecking
+            _ = store.statusSummary
         } onChange: { [weak self] in
             Task { @MainActor in
                 guard let self else { return }
@@ -93,8 +92,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func updateStatusItem() {
         guard let button = statusItem?.button else { return }
         let count = store.pendingCount
-        let summary = count == 0 ? "UpdateBar: everything is up to date"
-            : "UpdateBar: \(count) update\(count == 1 ? "" : "s") available"
+        let summary = "UpdateBar: \(store.statusSummary)"
         let symbol = count == 0 ? "arrow.down.app" : "arrow.down.app.fill"
         let image = NSImage(systemSymbolName: symbol, accessibilityDescription: summary)?
             .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 14, weight: .medium))
@@ -109,7 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// `UpdateBar --report` runs one check, prints what it found and exits; handy for
     /// debugging a wrong result without opening the menu.
     private func printReportAndExit() async {
-        await store.checkNow()
+        await store.checkNow(notify: false)
         var lines = ["\(store.appCount) apps, \(store.pendingCount) updates"]
         for row in store.rows {
             let others = row.alsoReportedBy.isEmpty ? "" : " (also \(row.alsoReportedBy.map(\.label).joined(separator: ", ")))"
@@ -132,7 +130,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// `UpdateBar --install <bundle ID>` checks, installs that app's pending update the
     /// way the Update button would (Sparkle or Homebrew only), prints the outcome and exits.
     private func installAndExit(_ bundleIdentifier: String) async {
-        await store.checkNow()
+        await store.checkNow(notify: false)
         guard let row = store.rows.first(where: { $0.app.bundleIdentifier == bundleIdentifier }) else {
             print("No pending update for \(bundleIdentifier)")
             exit(1)
@@ -140,7 +138,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let outcome: String
         switch row.update.action {
         case .sparkleInstall:
-            switch await SparkleInstaller.install(row.app, progress: { print("  \($0)") }) {
+            switch await SparkleInstaller.install(row.app, channels: store.betaChannels(for: row.id), progress: { print("  \($0)") }) {
             case .installed: outcome = "INSTALLED \(row.app.name) \(row.update.version)"
             case let .failure(message): outcome = "FAILED \(message)"
             }
