@@ -1,4 +1,17 @@
+import Darwin
 import Foundation
+
+@_silgen_name("malloc_zone_pressure_relief")
+private func mallocZonePressureRelief(_ zone: UnsafeMutableRawPointer?, _ goal: Int) -> Int
+
+/// JSONSerialization of a Homebrew index allocates hundreds of megabytes, then
+/// frees them. malloc keeps the empty pages, so a menu bar process stays large
+/// while idle unless asked to give them back.
+enum TransientMemory {
+    static func release() {
+        _ = mallocZonePressureRelief(UnsafeMutableRawPointer(malloc_default_zone()), 0)
+    }
+}
 
 struct IndexSnapshot<Value: Sendable>: Sendable {
     let value: Value
@@ -24,44 +37,61 @@ struct IndexCache: Sendable {
     }
 
     func load<Value: Sendable>(decode: @Sendable (Data) throws -> Value) async throws -> IndexSnapshot<Value> {
-        let fileManager = FileManager.default
-        let modified = (try? fileManager.attributesOfItem(atPath: fileURL.path)[.modificationDate]) as? Date
-        if let modified, Date().timeIntervalSince(modified) < revalidateAfter,
-           let cached = decodeFile(decode) {
-            return IndexSnapshot(value: cached, validatedAt: modified)
+        if let cached = freshFromDisk(decode) {
+            // The file's Data and the JSON graph are already gone. Give those
+            // pages back before the decoded models escape this call.
+            TransientMemory.release()
+            return cached
         }
+        let snapshot: IndexSnapshot<Value>
+        do {
+            snapshot = try await fetch(decode)
+        } catch {
+            if let cached = decodeFile(decode) {
+                TransientMemory.release()
+                return IndexSnapshot(value: cached, warning: "\(error.localizedDescription) Showing a cached index.")
+            }
+            throw error
+        }
+        TransientMemory.release()
+        return snapshot
+    }
 
+    private func freshFromDisk<Value>(_ decode: (Data) throws -> Value) -> IndexSnapshot<Value>? {
+        let fileManager = FileManager.default
+        guard let modified = (try? fileManager.attributesOfItem(atPath: fileURL.path)[.modificationDate]) as? Date,
+              Date().timeIntervalSince(modified) < revalidateAfter,
+              let cached = decodeFile(decode)
+        else { return nil }
+        return IndexSnapshot(value: cached, validatedAt: modified)
+    }
+
+    /// Owns the response body so it is released before the caller asks malloc
+    /// to return unused pages.
+    private func fetch<Value: Sendable>(_ decode: @Sendable (Data) throws -> Value) async throws -> IndexSnapshot<Value> {
+        let fileManager = FileManager.default
         var headers: [String: String] = [:]
         if FileManager.default.fileExists(atPath: fileURL.path),
            let etag = try? String(contentsOf: etagURL, encoding: .utf8) {
             headers["If-None-Match"] = etag
         }
-        do {
-            let (data, response) = try await client.data(from: remoteURL, headers: headers)
-            if response.statusCode == 304, let cached = decodeFile(decode) {
-                try? fileManager.setAttributes([.modificationDate: Date()], ofItemAtPath: fileURL.path)
-                return IndexSnapshot(value: cached)
-            }
-            guard (200..<300).contains(response.statusCode) else {
-                throw HTTPClient.HTTPError.status(response.statusCode)
-            }
-            let etag = response.value(forHTTPHeaderField: "ETag")
-            // Decode inside a pool so the multi-megabyte JSON object graph is
-            // freed before this check returns. The cooperative thread pool does
-            // not drain its own pool between jobs, and that graph was sticking
-            // around for the life of the menu bar process.
-            let decoded = try autoreleasepool { () -> Value in
-                let value = try decode(data)
-                persist(data, etag: etag)
-                return value
-            }
-            return IndexSnapshot(value: decoded)
-        } catch {
-            if let cached = decodeFile(decode) {
-                return IndexSnapshot(value: cached, warning: "\(error.localizedDescription) Showing a cached index.")
-            }
-            throw error
+        let (data, response) = try await client.data(from: remoteURL, headers: headers)
+        if response.statusCode == 304, let cached = decodeFile(decode) {
+            try? fileManager.setAttributes([.modificationDate: Date()], ofItemAtPath: fileURL.path)
+            return IndexSnapshot(value: cached)
         }
+        guard (200..<300).contains(response.statusCode) else {
+            throw HTTPClient.HTTPError.status(response.statusCode)
+        }
+        let etag = response.value(forHTTPHeaderField: "ETag")
+        // Decode inside a pool so the JSON object graph dies with this call.
+        // The cooperative thread pool does not drain its own pool between jobs.
+        let decoded = try autoreleasepool { () -> Value in
+            let value = try decode(data)
+            persist(data, etag: etag)
+            return value
+        }
+        return IndexSnapshot(value: decoded)
     }
 
     private func decodeFile<Value>(_ decode: (Data) throws -> Value) -> Value? {
@@ -130,6 +160,13 @@ actor DecodedIndex<Value: Sendable> {
     /// this on its own; tests call it with a chosen clock.
     func evictExpired(at now: Date = Date()) {
         entries = entries.filter { $0.value.expiresAt > now }
+    }
+
+    /// Drops every decoded index. Checkers call this once they have turned the
+    /// index into the small list of outdated apps, so idle time does not keep it.
+    func removeAll() {
+        entries.removeAll()
+        generations.removeAll()
     }
 
     private func retain(_ value: IndexSnapshot<Value>, for key: Key, revalidateAfter: TimeInterval) {

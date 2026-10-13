@@ -70,9 +70,9 @@ window; failed revalidation shows a warning while using a valid cached copy.
 Platform-specific Homebrew variations are applied for this Mac. Only the Homebrew
 prefix used by the installer is scanned, and app ownership is checked against
 resolved Caskroom artifacts. Hiding command-line tools also skips their scan.
-Decoded indexes are dropped when that ten-minute window ends, instead of being
-kept until the next check. Icons in the menu are small bitmaps, and the network
-client does not keep a response cache.
+The decoded indexes are released when the check finishes, instead of staying
+in memory until the next one. Icons in the menu are small bitmaps, and the
+network client does not keep a response cache.
 
 App and tool installers share one reservation, including all queued apps in a
 batch. Concurrent refresh requests share work; changes during a check trigger a

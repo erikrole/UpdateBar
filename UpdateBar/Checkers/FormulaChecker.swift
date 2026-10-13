@@ -51,13 +51,22 @@ struct FormulaChecker: Sendable {
         let installed = Self.installedFormulae(in: cellars)
         guard !installed.isEmpty else { return ([], []) }
         do {
-            let snapshot = try await Self.decodedIndex.load(from: index) { try Self.decode($0) }
-            let pinned = Self.pinnedFormulae(in: pinnedFolders)
-            let failures = snapshot.warning.map { [CheckFailure(source: .homebrew, subject: "Command-line tools", message: $0)] } ?? []
-            return (Self.evaluate(installed: installed, formulae: snapshot.value, pinned: pinned), failures)
+            let outcome = try await evaluated(installed: installed)
+            await Self.decodedIndex.removeAll()
+            TransientMemory.release()
+            return outcome
         } catch {
+            await Self.decodedIndex.removeAll()
+            TransientMemory.release()
             return ([], [CheckFailure(source: .homebrew, subject: "Command-line tools", message: error.localizedDescription)])
         }
+    }
+
+    private func evaluated(installed: [String: Installed]) async throws -> (tools: [ToolUpdate], failures: [CheckFailure]) {
+        let snapshot = try await Self.decodedIndex.load(from: index) { try Self.decode($0) }
+        let pinned = Self.pinnedFormulae(in: pinnedFolders)
+        let failures = snapshot.warning.map { [CheckFailure(source: .homebrew, subject: "Command-line tools", message: $0)] } ?? []
+        return (Self.evaluate(installed: installed, formulae: snapshot.value, pinned: pinned), failures)
     }
 
     static func decode(_ data: Data, platform: String = HomebrewPlatform.tag) throws -> [Formula] {
@@ -70,11 +79,11 @@ struct FormulaChecker: Sendable {
                 else { return nil }
                 let revision = json["revision"] as? Int ?? 0
                 return Formula(
-                    name: name,
-                    oldNames: json["oldnames"] as? [String] ?? [],
-                    packageVersion: revision > 0 ? "\(stable)_\(revision)" : stable,
-                    summary: json["desc"] as? String,
-                    homepage: (json["homepage"] as? String).flatMap(URL.init(string:)),
+                    name: detachedCopy(name),
+                    oldNames: (json["oldnames"] as? [String] ?? []).map(detachedCopy),
+                    packageVersion: detachedCopy(revision > 0 ? "\(stable)_\(revision)" : stable),
+                    summary: (json["desc"] as? String).map(detachedCopy),
+                    homepage: (json["homepage"] as? String).map(detachedCopy).flatMap(URL.init(string:)),
                     isDisabled: (json["disabled"] as? Bool) == true
                 )
             }

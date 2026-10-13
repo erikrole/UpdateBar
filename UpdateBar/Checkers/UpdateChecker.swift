@@ -33,6 +33,12 @@ protocol UpdateChecker: Sendable {
     func check(_ apps: [InstalledApp]) async -> CheckerResult
 }
 
+/// A Swift string that does not share storage with a JSON object. Bridged
+/// strings would keep Homebrew's whole parsed index alive.
+func detachedCopy(_ string: String) -> String {
+    String(decoding: Data(string.utf8), as: UTF8.self)
+}
+
 /// Small HTTP helper shared by the checkers: short timeouts, no cookies, HTTPS only.
 struct HTTPClient: Sendable {
     let session: URLSession

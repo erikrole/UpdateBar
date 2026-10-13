@@ -217,19 +217,23 @@ final class IndexRegressionTests: XCTestCase, @unchecked Sendable {
         let cache = DecodedIndex<[Int]>()
         let loaded = try await cache.load(from: index) { try JSONDecoder().decode([Int].self, from: $0) }
         let fresh = loaded.validatedAt.addingTimeInterval(30)
-        XCTAssertTrue(await cache.retainsFreshEntry(for: index, now: fresh))
+        let stillFresh = await cache.retainsFreshEntry(for: index, now: fresh)
+        XCTAssertTrue(stillFresh)
         await cache.evictExpired(at: fresh)
-        XCTAssertTrue(await cache.retainsFreshEntry(for: index, now: fresh))
+        let kept = await cache.retainsFreshEntry(for: index, now: fresh)
+        XCTAssertTrue(kept)
         let expired = loaded.validatedAt.addingTimeInterval(601)
         await cache.evictExpired(at: expired)
-        XCTAssertFalse(await cache.retainsFreshEntry(for: index, now: expired))
+        let dropped = await cache.retainsFreshEntry(for: index, now: expired)
+        XCTAssertFalse(dropped)
     }
 
     func testZeroFreshnessWindowIsNotRetained() async throws {
         let index = try fixture("valid", ttl: 0)
         let cache = DecodedIndex<[Int]>()
         _ = try await cache.load(from: index) { try JSONDecoder().decode([Int].self, from: $0) }
-        XCTAssertFalse(await cache.retainsFreshEntry(for: index))
+        let retained = await cache.retainsFreshEntry(for: index)
+        XCTAssertFalse(retained)
     }
 }
 
