@@ -61,21 +61,23 @@ struct FormulaChecker: Sendable {
     }
 
     static func decode(_ data: Data, platform: String = HomebrewPlatform.tag) throws -> [Formula] {
-        let array = try HomebrewPlatform.records(data, tag: platform)
-        return array.compactMap { json in
-            guard let name = json["name"] as? String,
-                  let versions = json["versions"] as? [String: Any],
-                  let stable = versions["stable"] as? String
-            else { return nil }
-            let revision = json["revision"] as? Int ?? 0
-            return Formula(
-                name: name,
-                oldNames: json["oldnames"] as? [String] ?? [],
-                packageVersion: revision > 0 ? "\(stable)_\(revision)" : stable,
-                summary: json["desc"] as? String,
-                homepage: (json["homepage"] as? String).flatMap(URL.init(string:)),
-                isDisabled: (json["disabled"] as? Bool) == true
-            )
+        try autoreleasepool {
+            let array = try HomebrewPlatform.records(data, tag: platform)
+            return array.compactMap { json in
+                guard let name = json["name"] as? String,
+                      let versions = json["versions"] as? [String: Any],
+                      let stable = versions["stable"] as? String
+                else { return nil }
+                let revision = json["revision"] as? Int ?? 0
+                return Formula(
+                    name: name,
+                    oldNames: json["oldnames"] as? [String] ?? [],
+                    packageVersion: revision > 0 ? "\(stable)_\(revision)" : stable,
+                    summary: json["desc"] as? String,
+                    homepage: (json["homepage"] as? String).flatMap(URL.init(string:)),
+                    isDisabled: (json["disabled"] as? Bool) == true
+                )
+            }
         }
     }
 
@@ -90,11 +92,13 @@ struct FormulaChecker: Sendable {
                     .filter { !$0.hasPrefix(".") }
                 guard !versions.isEmpty else { continue }
                 let requested = versions.contains { version in
-                    let receipt = folder.appending(path: "\(version)/INSTALL_RECEIPT.json")
-                    guard let data = try? Data(contentsOf: receipt),
-                          let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-                    else { return false }
-                    return (json["installed_on_request"] as? Bool) == true
+                    autoreleasepool {
+                        let receipt = folder.appending(path: "\(version)/INSTALL_RECEIPT.json")
+                        guard let data = try? Data(contentsOf: receipt),
+                              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+                        else { return false }
+                        return (json["installed_on_request"] as? Bool) == true
+                    }
                 }
                 result[name] = Installed(versions: versions, requested: requested)
             }

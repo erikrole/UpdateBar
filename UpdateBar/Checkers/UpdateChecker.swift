@@ -45,6 +45,10 @@ struct HTTPClient: Sendable {
         configuration.timeoutIntervalForResource = timeout * 3
         configuration.httpAdditionalHeaders = ["User-Agent": "UpdateBar/\(Self.appVersion)"]
         configuration.httpShouldSetCookies = false
+        // A default cache keeps the cask and formula responses (about 50 MB)
+        // for the life of this process. UpdateBar already stores those on disk.
+        configuration.urlCache = URLCache(memoryCapacity: 0, diskCapacity: 0, directory: nil)
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         session = URLSession(configuration: configuration, delegate: HTTPSRedirectDelegate(), delegateQueue: nil)
     }
 

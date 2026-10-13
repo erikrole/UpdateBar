@@ -94,6 +94,23 @@ final class SparkleTests: XCTestCase {
         XCTAssertNil(SparkleChecker.update(for: app("com.x.App", short: "2.5", build: "9"), item: best))
     }
 
+    func testBuildIncreaseCannotRollTheReadableVersionBackwards() {
+        let item = AppcastItem(version: "300", shortVersion: "1.0")
+        XCTAssertNil(SparkleChecker.update(for: app("com.x.App", short: "2.0", build: "100"), item: item))
+    }
+
+    func testSystemBoundsAreInclusive() {
+        let items = [
+            AppcastItem(version: "2", shortVersion: "2.0", minimumSystemVersion: "14.0"),
+            AppcastItem(version: "3", shortVersion: "3.0", minimumSystemVersion: "14.0.1"),
+            AppcastItem(version: "4", shortVersion: "4.0", maximumSystemVersion: "14.0"),
+            AppcastItem(version: "5", shortVersion: "5.0", maximumSystemVersion: "13.9"),
+        ]
+        let sonoma = OperatingSystemVersion(majorVersion: 14, minorVersion: 0, patchVersion: 0)
+        let selected = SparkleChecker.newestCompatible(items, systemVersion: sonoma)
+        XCTAssertEqual(selected?.version, "4")
+    }
+
     func testDecoratedShortVersionWithSameBuildIsCurrent() {
         // Dia publishes "1.52.0 (88431)" while the app says "1.52.0".
         let item = AppcastItem(version: "88431", shortVersion: "1.52.0 (88431)")
@@ -160,6 +177,29 @@ final class FormulaTests: XCTestCase {
         XCTAssertFalse(updates[1].requested)
     }
 
+    func testOldNameMatchesAndDisabledFormulaIsSkipped() {
+        let formulae = [
+            FormulaChecker.Formula(name: "node", oldNames: ["node24"], packageVersion: "24.21.0", summary: nil, homepage: nil, isDisabled: false),
+            FormulaChecker.Formula(name: "ffmpeg", oldNames: [], packageVersion: "9.0.2_1", summary: nil, homepage: nil, isDisabled: true),
+        ]
+        let installed: [String: FormulaChecker.Installed] = [
+            "node24": .init(versions: ["24.0.0"], requested: true),
+            "ffmpeg": .init(versions: ["8.0"], requested: true),
+        ]
+        let updates = FormulaChecker.evaluate(installed: installed, formulae: formulae, pinned: [])
+        XCTAssertEqual(updates.map(\.name), ["node24"])
+        XCTAssertEqual(updates.first?.installedVersion, "24.0.0")
+    }
+
+    func testNewestCellarVersionIsTheOneCompared() {
+        let installed: [String: FormulaChecker.Installed] = [
+            "uv": .init(versions: ["0.1.0", "HEAD-abc", "0.12.0"], requested: true),
+        ]
+        let updates = FormulaChecker.evaluate(installed: installed, formulae: formulae, pinned: [])
+        XCTAssertEqual(updates.first?.installedVersion, "0.12.0")
+        XCTAssertEqual(updates.first?.latestVersion, "0.13.0")
+    }
+
     func testSkipsPinnedAndHeadBuilds() {
         let installed: [String: FormulaChecker.Installed] = [
             "uv": .init(versions: ["0.12.18"], requested: true),
@@ -215,6 +255,26 @@ final class HomebrewTests: XCTestCase {
         let update = try XCTUnwrap(result.updates.first)
         XCTAssertEqual(update.action, .brewUpgrade(token: "iina"))
         XCTAssertTrue(result.isCovered("com.colliderli.iina", by: .homebrew))
+    }
+
+    func testCaskThatMatchesTheBuildIsCurrent() {
+        let iina = app("com.colliderli.iina", name: "IINA", short: "1.4.4", build: "1.5.0")
+        let result = HomebrewChecker.evaluate([iina], casks: casks, installed: ["iina": [iina.url]])
+        XCTAssertTrue(result.updates.isEmpty)
+        XCTAssertTrue(result.isCovered("com.colliderli.iina", by: .homebrew))
+    }
+
+    func testFallbackMajorMustBeClose() {
+        let casks = [
+            Cask(token: "close", version: "6.0", appNames: ["Close.app"], homepage: URL(string: "https://close.example")),
+            Cask(token: "far", version: "12.0", appNames: ["Far.app"], homepage: URL(string: "https://far.example")),
+        ]
+        let apps = [
+            app("com.x.Close", name: "Close", short: "1.0"),
+            app("com.x.Far", name: "Far", short: "1.0"),
+        ]
+        let result = HomebrewChecker.evaluate(apps, casks: casks, installed: [:])
+        XCTAssertEqual(result.updates.map(\.bundleIdentifier), ["com.x.Close"])
     }
 
     func testSelfUpdatedCaskIsNotFlagged() {
@@ -283,12 +343,33 @@ final class GitHubTests: XCTestCase {
         XCTAssertEqual(update.downloadURL?.lastPathComponent, "x.zip")
         XCTAssertNil(GitHubChecker.update(for: app("com.erole.PowerBar", short: "0.2.0"), release: release))
     }
+
+    func testDraftAndPrereleaseAreNotUpdates() {
+        let page = URL(string: "https://github.com/erikrole/PowerBar/releases/tag/v2.0.0")!
+        let installed = app("com.erole.PowerBar", short: "1.0.0")
+        let draft = GitHubRelease(tagName: "v2.0.0", htmlURL: page, body: nil, draft: true, prerelease: false, publishedAt: nil, assets: [])
+        let preview = GitHubRelease(tagName: "v2.0.0", htmlURL: page, body: nil, draft: false, prerelease: true, publishedAt: nil, assets: [])
+        XCTAssertNil(GitHubChecker.update(for: installed, release: draft))
+        XCTAssertNil(GitHubChecker.update(for: installed, release: preview))
+    }
 }
 
 final class ResolverTests: XCTestCase {
     private func update(_ id: String, _ source: UpdateSource, _ version: String) -> AvailableUpdate {
         AvailableUpdate(bundleIdentifier: id, source: source, version: version, comparableVersion: version,
                         releaseDate: nil, releaseNotes: nil, releaseNotesURL: nil, downloadURL: nil, action: .launchApp)
+    }
+
+    func testAppStoreOutranksASparkleUpdate() {
+        let apps = [app("com.x.A", short: "1.0")]
+        var result = CheckerResult()
+        result.cover("com.x.A", by: .appStore)
+        result.cover("com.x.A", by: .sparkle)
+        result.updates = [update("com.x.A", .sparkle, "9.0"), update("com.x.A", .appStore, "1.1")]
+        let rows = UpdateResolver.resolve(apps: apps, result: result, ignoredApps: [], skippedVersions: [:])
+        XCTAssertEqual(rows.first?.update.source, .appStore)
+        XCTAssertEqual(rows.first?.update.version, "1.1")
+        XCTAssertEqual(rows.first?.alsoReportedBy, [.sparkle])
     }
 
     func testCoveringSourceOverridesFallbackHints() {

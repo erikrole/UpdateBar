@@ -30,8 +30,10 @@ struct HomebrewChecker: UpdateChecker {
     // MARK: - Cask index
 
     static func decode(_ data: Data, platform: String = HomebrewPlatform.tag) throws -> [Cask] {
-        let array = try HomebrewPlatform.records(data, tag: platform)
-        return array.compactMap(Cask.init(json:))
+        try autoreleasepool {
+            let array = try HomebrewPlatform.records(data, tag: platform)
+            return array.compactMap(Cask.init(json:))
+        }
     }
 
     /// Resolve the installed .app artifacts to their real destinations. Cask

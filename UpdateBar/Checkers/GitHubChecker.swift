@@ -43,7 +43,7 @@ struct GitHubChecker: UpdateChecker {
             case 404: return result // No published release yet; nothing to say.
             default: throw HTTPClient.HTTPError.status(response.statusCode)
             }
-            let release = try JSONDecoder.iso8601.decode(GitHubRelease.self, from: data)
+            let release = try autoreleasepool { try JSONDecoder.iso8601.decode(GitHubRelease.self, from: data) }
             result.cover(app.bundleIdentifier, by: .github)
             if let update = update(for: app, release: release) { result.updates.append(update) }
         } catch {

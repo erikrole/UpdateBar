@@ -11,15 +11,15 @@ struct UpdateBarView: View {
         VStack(spacing: 0) {
             header
             Divider()
-            if let notice = store.toolNotice, !showingSettings {
-                Label(notice, systemImage: "checkmark.circle.fill")
+            if let banner = store.banner, !showingSettings {
+                let tint = banner.isWarning ? Color.orange : Color.green
+                Label(banner.text, systemImage: banner.isWarning ? "exclamationmark.triangle" : "checkmark.circle")
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(tint)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
-                    .background(.green.opacity(0.08))
-                    .transition(.move(edge: .top).combined(with: .opacity))
+                    .background(tint.opacity(0.08))
             }
             if showingSettings {
                 SettingsView(store: store, launchAtLogin: launchAtLogin)
@@ -171,10 +171,6 @@ struct UpdateBarView: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 6)
-            }
-
-            if let notice = store.toolNotice {
-                Text(notice).font(.caption).foregroundStyle(.secondary).padding(.horizontal, 16)
             }
 
             if let message = store.actionMessages[UpdateStore.allToolsID] {
@@ -533,7 +529,8 @@ private struct AppIcon: View {
     @State private var icon: NSImage?
     private static let cache: NSCache<NSString, NSImage> = {
         let cache = NSCache<NSString, NSImage>()
-        cache.countLimit = 128
+        cache.countLimit = 64
+        cache.totalCostLimit = 2 * 1024 * 1024
         return cache
     }()
 
@@ -547,10 +544,37 @@ private struct AppIcon: View {
             let key = "\(app.url.path)|\(app.displayVersion)|\(app.buildVersion ?? "")" as NSString
             if let cached = Self.cache.object(forKey: key) { icon = cached }
             else {
-                let loaded = NSWorkspace.shared.icon(forFile: app.url.path)
-                Self.cache.setObject(loaded, forKey: key)
+                let source = NSWorkspace.shared.icon(forFile: app.url.path)
+                let loaded = IconThumbnail.fitted(from: source)
+                Self.cache.setObject(loaded, forKey: key, cost: 64 * 64 * 4)
                 icon = loaded
             }
         }
+    }
+}
+
+/// A 32-point bitmap. `icon(forFile:)` keeps every size in the .icns, which is
+/// far more memory than a menu row needs.
+@MainActor
+enum IconThumbnail {
+    static func fitted(from source: NSImage, points: CGFloat = 32) -> NSImage {
+        let pixels = max(1, Int((points * 2).rounded()))
+        let empty = NSImage(size: NSSize(width: points, height: points))
+        guard let context = CGContext(
+            data: nil,
+            width: pixels,
+            height: pixels,
+            bitsPerComponent: 8,
+            bytesPerRow: pixels * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else { return empty }
+        let previous = NSGraphicsContext.current
+        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+        source.draw(in: NSRect(x: 0, y: 0, width: points, height: points))
+        NSGraphicsContext.current = previous
+        guard let cgImage = context.makeImage() else { return empty }
+        let image = NSImage(cgImage: cgImage, size: NSSize(width: points, height: points))
+        return image
     }
 }

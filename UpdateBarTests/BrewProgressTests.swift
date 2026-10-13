@@ -50,4 +50,24 @@ final class BrewProgressTests: XCTestCase {
         progress.apply(.init(names: ["uv"], stage: .downloading))
         XCTAssertEqual(progress.stages["uv"], .done)
     }
+
+    func testErrorLinesMarkThePackageFailed() {
+        XCTAssertEqual(BrewOutputParser.event(for: "Error: ffmpeg: Failed to download resource \"ffmpeg\""),
+                       .init(names: ["ffmpeg"], stage: .failed))
+        XCTAssertEqual(BrewOutputParser.event(for: "Error: Cask 'google-chrome' is not installed."),
+                       .init(names: ["google-chrome"], stage: .failed))
+        XCTAssertNil(BrewOutputParser.event(for: "Error: Failure while executing; `/bin/sh` exited with 1."))
+    }
+
+    func testStoppedRunKeepsFinishedPackages() {
+        var progress = BrewRunProgress(names: ["uv", "ffmpeg"])
+        progress.apply(.init(names: ["uv"], stage: .done))
+        progress.apply(.init(names: ["ffmpeg"], stage: .installing))
+        progress.markUnfinishedFailed()
+        XCTAssertEqual(progress.stages["uv"], .done)
+        XCTAssertEqual(progress.stages["ffmpeg"], .failed)
+        XCTAssertEqual(progress.finished, 1)
+        progress.apply(.init(names: ["ffmpeg"], stage: .downloading))
+        XCTAssertEqual(progress.stages["ffmpeg"], .failed)
+    }
 }
