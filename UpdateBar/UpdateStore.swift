@@ -349,9 +349,10 @@ final class UpdateStore {
             }
             if !failed.isEmpty {
                 let updated = targets.count - failed.count
+                let names = failed.joined(separator: ", ")
                 let text = updated == 0
-                    ? "Couldn't update \(failed.joined(separator: ", "))"
-                    : "Updated \(updated) of \(targets.count). \(failed.joined(separator: ", ")) still need an update"
+                    ? "Couldn't update \(names)"
+                    : "Updated \(updated) of \(targets.count). \(names) still \(failed.count == 1 ? "needs" : "need") an update"
                 banner = Banner(text: text, isWarning: true)
             }
             activeAppID = nil
