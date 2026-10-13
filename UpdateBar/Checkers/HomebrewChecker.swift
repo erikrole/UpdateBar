@@ -42,8 +42,166 @@ struct HomebrewChecker: UpdateChecker {
 
     static func decode(_ data: Data, platform: String = HomebrewPlatform.tag) throws -> [Cask] {
         try autoreleasepool {
-            let array = try HomebrewPlatform.records(data, tag: platform)
-            return array.compactMap(Cask.init(json:))
+            try JSONScan.with(data) { cursor in
+                var casks: [Cask] = []
+                try cursor.readArray { cursor in
+                    guard cursor.peekByte() == UInt8(ascii: "{") else { throw JSONParseError() }
+                    if let cask = try readCask(from: cursor, platform: platform) {
+                        casks.append(cask)
+                    }
+                }
+                return casks
+            }
+        }
+    }
+
+    /// One cask object. A matching `variations` entry replaces same-named fields
+    /// after the base object is read, which is Homebrew's shallow merge.
+    private static func readCask(from cursor: JSONCursor, platform: String) throws -> Cask? {
+        var fields = CaskFields()
+        var overlay: CaskFields?
+        try cursor.readObject { cursor, key in
+            if key == "variations" {
+                overlay = try variation(from: cursor, platform: platform)
+            } else {
+                try apply(key, to: &fields, from: cursor)
+            }
+        }
+        if let overlay { fields.apply(overlay) }
+        return fields.cask()
+    }
+
+    private static func variation(from cursor: JSONCursor, platform: String) throws -> CaskFields? {
+        guard cursor.peekByte() == UInt8(ascii: "{") else {
+            try cursor.skipValue()
+            return nil
+        }
+        var match: CaskFields?
+        try cursor.readObject { cursor, key in
+            guard key == platform, cursor.peekByte() == UInt8(ascii: "{") else {
+                try cursor.skipValue()
+                return
+            }
+            var fields = CaskFields()
+            try cursor.readObject { cursor, key in
+                try apply(key, to: &fields, from: cursor)
+            }
+            match = fields
+        }
+        return match
+    }
+
+    private static func apply(_ key: String, to fields: inout CaskFields, from cursor: JSONCursor) throws {
+        switch key {
+        case "token":
+            fields.keys.insert(key)
+            fields.token = try cursor.takeString()
+        case "version":
+            fields.keys.insert(key)
+            fields.version = try cursor.takeString()
+        case "homepage":
+            fields.keys.insert(key)
+            fields.homepage = try cursor.takeString()
+        case "url":
+            fields.keys.insert(key)
+            fields.downloadURL = try cursor.takeString()
+        case "disabled":
+            fields.keys.insert(key)
+            fields.disabled = try cursor.takeBool()
+        case "deprecated":
+            fields.keys.insert(key)
+            fields.deprecated = try cursor.takeBool()
+        case "auto_updates":
+            fields.keys.insert(key)
+            fields.autoUpdates = try cursor.takeBool()
+        case "artifacts":
+            fields.keys.insert(key)
+            let artifacts = try artifacts(from: cursor)
+            fields.appNames = artifacts.names
+            fields.bundleIDs = artifacts.ids
+        default:
+            try cursor.skipValue()
+        }
+    }
+
+    private static func artifacts(from cursor: JSONCursor) throws -> (names: [String], ids: Set<String>) {
+        guard cursor.peekByte() == UInt8(ascii: "[") else {
+            try cursor.skipValue()
+            return ([], [])
+        }
+        var names: [String] = []
+        var ids = Set<String>()
+        try cursor.readArray { cursor in
+            guard cursor.peekByte() == UInt8(ascii: "{") else {
+                try cursor.skipValue()
+                return
+            }
+            try cursor.readObject { cursor, key in
+                switch key {
+                case "app":
+                    try appNames(from: cursor, into: &names)
+                case "uninstall", "zap":
+                    try bundleIDs(from: cursor, into: &ids)
+                default:
+                    try cursor.skipValue()
+                }
+            }
+        }
+        return (names, ids)
+    }
+
+    private static func appNames(from cursor: JSONCursor, into names: inout [String]) throws {
+        guard cursor.peekByte() == UInt8(ascii: "[") else {
+            try cursor.skipValue()
+            return
+        }
+        try cursor.readArray { cursor in
+            guard cursor.peekByte() == UInt8(ascii: "\"") else {
+                try cursor.skipValue()
+                return
+            }
+            let name = try cursor.readString()
+            guard name.hasSuffix(".app"), let file = name.split(separator: "/", omittingEmptySubsequences: true).last else { return }
+            names.append(String(file))
+        }
+    }
+
+    /// `quit` and `signal` contribute a bundle ID only when they are a string or
+    /// an array of strings. A signal dictionary names a process signal, not an ID.
+    private static func bundleIDs(from cursor: JSONCursor, into ids: inout Set<String>) throws {
+        guard cursor.peekByte() == UInt8(ascii: "[") else {
+            try cursor.skipValue()
+            return
+        }
+        try cursor.readArray { cursor in
+            guard cursor.peekByte() == UInt8(ascii: "{") else {
+                try cursor.skipValue()
+                return
+            }
+            try cursor.readObject { cursor, key in
+                guard key == "quit" || key == "signal" else {
+                    try cursor.skipValue()
+                    return
+                }
+                try idValues(from: cursor, into: &ids)
+            }
+        }
+    }
+
+    private static func idValues(from cursor: JSONCursor, into ids: inout Set<String>) throws {
+        switch cursor.peekByte() {
+        case UInt8(ascii: "\""):
+            ids.insert(try cursor.readString())
+        case UInt8(ascii: "["):
+            try cursor.readArray { cursor in
+                if cursor.peekByte() == UInt8(ascii: "\"") {
+                    ids.insert(try cursor.readString())
+                } else {
+                    try cursor.skipValue()
+                }
+            }
+        default:
+            try cursor.skipValue()
         }
     }
 
@@ -168,38 +326,47 @@ struct Cask: Sendable, Equatable {
         self.autoUpdates = autoUpdates
     }
 
-    init?(json: [String: Any]) {
-        guard let token = (json["token"] as? String).map(detachedCopy),
-              let version = (json["version"] as? String).map(detachedCopy) else { return nil }
-        var appNames: [String] = []
-        var bundleIdentifiers: Set<String> = []
-        for artifact in json["artifacts"] as? [[String: Any]] ?? [] {
-            if let apps = artifact["app"] as? [Any] {
-                for case let name as String in apps where name.hasSuffix(".app") {
-                    appNames.append(detachedCopy((name as NSString).lastPathComponent))
-                }
-            }
-            // `uninstall quit:` and `zap` often name the app's bundle ID, which lets a
-            // name-only match be confirmed.
-            for key in ["uninstall", "zap"] {
-                for case let directive as [String: Any] in artifact[key] as? [Any] ?? [] {
-                    for value in [directive["quit"], directive["signal"]] {
-                        if let id = value as? String { bundleIdentifiers.insert(detachedCopy(id)) }
-                        if let ids = value as? [String] { bundleIdentifiers.formUnion(ids.map(detachedCopy)) }
-                    }
-                }
-            }
+}
+
+/// Fields read from one cask object. `keys` records which names a variation
+/// actually set, so an absent key does not wipe the base value.
+private struct CaskFields {
+    var token: String?
+    var version: String?
+    var homepage: String?
+    var downloadURL: String?
+    var disabled = false
+    var deprecated = false
+    var autoUpdates = false
+    var appNames: [String] = []
+    var bundleIDs: Set<String> = []
+    var keys: Set<String> = []
+
+    mutating func apply(_ overlay: CaskFields) {
+        if overlay.keys.contains("token") { token = overlay.token }
+        if overlay.keys.contains("version") { version = overlay.version }
+        if overlay.keys.contains("homepage") { homepage = overlay.homepage }
+        if overlay.keys.contains("url") { downloadURL = overlay.downloadURL }
+        if overlay.keys.contains("disabled") { disabled = overlay.disabled }
+        if overlay.keys.contains("deprecated") { deprecated = overlay.deprecated }
+        if overlay.keys.contains("auto_updates") { autoUpdates = overlay.autoUpdates }
+        if overlay.keys.contains("artifacts") {
+            appNames = overlay.appNames
+            bundleIDs = overlay.bundleIDs
         }
-        guard !appNames.isEmpty else { return nil }
-        self.init(
+    }
+
+    func cask() -> Cask? {
+        guard let token, let version, !appNames.isEmpty else { return nil }
+        return Cask(
             token: token,
             version: version,
             appNames: appNames,
-            bundleIdentifiers: bundleIdentifiers,
-            homepage: (json["homepage"] as? String).map(detachedCopy).flatMap(URL.init(string:)),
-            downloadURL: (json["url"] as? String).map(detachedCopy).flatMap(URL.init(string:)),
-            isDisabled: (json["disabled"] as? Bool) == true || (json["deprecated"] as? Bool) == true,
-            autoUpdates: (json["auto_updates"] as? Bool) == true
+            bundleIdentifiers: bundleIDs,
+            homepage: homepage.flatMap(URL.init(string:)),
+            downloadURL: downloadURL.flatMap(URL.init(string:)),
+            isDisabled: disabled || deprecated,
+            autoUpdates: autoUpdates
         )
     }
 }
@@ -223,13 +390,4 @@ enum HomebrewPlatform {
         return [URL(filePath: executable).deletingLastPathComponent().deletingLastPathComponent().appending(path: path)]
     }
 
-    static func records(_ data: Data, tag: String) throws -> [[String: Any]] {
-        guard let records = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-            throw DecodingError.dataCorrupted(.init(codingPath: [], debugDescription: "Expected a Homebrew index array."))
-        }
-        return records.map { record in
-            guard let variations = record["variations"] as? [String: [String: Any]], let variant = variations[tag] else { return record }
-            return record.merging(variant) { _, platformValue in platformValue }
-        }
-    }
 }

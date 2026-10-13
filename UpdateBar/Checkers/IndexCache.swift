@@ -4,9 +4,9 @@ import Foundation
 @_silgen_name("malloc_zone_pressure_relief")
 private func mallocZonePressureRelief(_ zone: UnsafeMutableRawPointer?, _ goal: Int) -> Int
 
-/// JSONSerialization of a Homebrew index allocates hundreds of megabytes, then
-/// frees them. malloc keeps the empty pages, so a menu bar process stays large
-/// while idle unless asked to give them back.
+/// Plist scans and other Foundation parses allocate temporary graphs, then free
+/// them. malloc keeps the empty pages, so a menu bar process stays large while
+/// idle unless asked to give them back.
 enum TransientMemory {
     static func release() {
         _ = mallocZonePressureRelief(UnsafeMutableRawPointer(malloc_default_zone()), 0)
@@ -133,6 +133,9 @@ actor DecodedIndex<Value: Sendable> {
     private var entries: [Key: Entry] = [:]
     private var generations: [Key: UInt] = [:]
     private var loading: [Key: Task<IndexSnapshot<Value>, Error>] = [:]
+    /// Wakes when a freshness window ends. Cancelled when the entry is dropped
+    /// early, so a finished check does not leave a timer running.
+    private var expirations: [Key: Task<Void, Never>] = [:]
 
     func load(from index: IndexCache, now: Date = Date(), decode: @escaping @Sendable (Data) throws -> Value) async throws -> IndexSnapshot<Value> {
         let key = Key(remote: index.remoteURL, file: index.fileURL)
@@ -167,6 +170,8 @@ actor DecodedIndex<Value: Sendable> {
     func removeAll() {
         entries.removeAll()
         generations.removeAll()
+        for task in expirations.values { task.cancel() }
+        expirations.removeAll()
     }
 
     private func retain(_ value: IndexSnapshot<Value>, for key: Key, revalidateAfter: TimeInterval) {
@@ -180,8 +185,10 @@ actor DecodedIndex<Value: Sendable> {
             expiresAt: value.validatedAt.addingTimeInterval(revalidateAfter),
             generation: generation
         )
-        Task(priority: .utility) {
+        expirations[key]?.cancel()
+        expirations[key] = Task(priority: .utility) {
             try? await Task.sleep(for: .seconds(remaining))
+            guard !Task.isCancelled else { return }
             await self.evict(key, generation: generation)
         }
     }
@@ -189,5 +196,6 @@ actor DecodedIndex<Value: Sendable> {
     private func evict(_ key: Key, generation: UInt) {
         guard entries[key]?.generation == generation else { return }
         entries[key] = nil
+        expirations[key] = nil
     }
 }

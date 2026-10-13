@@ -39,15 +39,6 @@ enum UpdateSource: String, Codable, CaseIterable, Sendable, Comparable {
         }
     }
 
-    var symbolName: String {
-        switch self {
-        case .appStore: "bag"
-        case .sparkle: "sparkles"
-        case .homebrew: "mug"
-        case .github: "chevron.left.forwardslash.chevron.right"
-        }
-    }
-
     private var rank: Int {
         switch self {
         case .appStore: 0
