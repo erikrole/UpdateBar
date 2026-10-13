@@ -11,16 +11,6 @@ struct UpdateBarView: View {
         VStack(spacing: 0) {
             header
             Divider()
-            if let banner = store.banner, !showingSettings {
-                let tint = banner.isWarning ? Color.orange : Color.green
-                Label(banner.text, systemImage: banner.isWarning ? "exclamationmark.triangle" : "checkmark.circle")
-                    .font(.caption.weight(.medium))
-                    .foregroundStyle(tint)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(tint.opacity(0.08))
-            }
             if showingSettings {
                 SettingsView(store: store, launchAtLogin: launchAtLogin)
             } else {
@@ -35,34 +25,45 @@ struct UpdateBarView: View {
     // MARK: - Header and footer
 
     private var header: some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(showingSettings ? "Settings" : headline)
                     .font(.headline)
                 Text(subheadline)
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if let banner = store.banner, !showingSettings {
+                    Text(banner.text)
+                        .font(.caption)
+                        .foregroundStyle(banner.isWarning ? Color.primary : Color.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 4)
+                }
             }
-            Spacer()
-            if store.isChecking {
-                ProgressView().controlSize(.small)
-            }
-            Button {
-                Task { await store.checkNow() }
-            } label: {
-                Image(systemName: "arrow.clockwise")
-            }
-            .buttonStyle(.borderless)
-            .disabled(store.isChecking)
-            .help("Check now")
+            Spacer(minLength: 12)
+            HStack(spacing: 8) {
+                if store.isChecking {
+                    ProgressView().controlSize(.small)
+                }
+                Button {
+                    Task { await store.checkNow() }
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .disabled(store.isChecking)
+                .help("Check now")
 
-            Button {
-                showingSettings.toggle()
-            } label: {
-                Image(systemName: showingSettings ? "xmark" : "gearshape")
+                Button {
+                    showingSettings.toggle()
+                } label: {
+                    Image(systemName: showingSettings ? "xmark" : "gearshape")
+                }
+                .buttonStyle(.borderless)
+                .help(showingSettings ? "Close settings" : "Settings")
             }
-            .buttonStyle(.borderless)
-            .help(showingSettings ? "Close settings" : "Settings")
+            .padding(.top, 2)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
@@ -102,9 +103,6 @@ struct UpdateBarView: View {
         if store.rows.isEmpty && store.requestedTools.isEmpty && store.dependencyTools.isEmpty {
             VStack(spacing: 8) {
                 Spacer()
-                Image(systemName: store.lastChecked == nil ? "hourglass" : (store.failures.isEmpty ? "checkmark.circle" : "exclamationmark.triangle"))
-                    .font(.system(size: 32, weight: .light))
-                    .foregroundStyle(.secondary)
                 Text(store.lastChecked == nil ? "Looking for updates…" : (store.failures.isEmpty ? "No updates right now" : "Check incomplete"))
                     .foregroundStyle(.secondary)
                 if !store.failures.isEmpty {
@@ -146,7 +144,7 @@ struct UpdateBarView: View {
     private var toolsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
-                Label("Command-line tools", systemImage: "terminal")
+                Text("Command-line tools")
                     .font(.subheadline.weight(.semibold))
                 Spacer()
                 if store.toolRun == nil {
@@ -255,17 +253,9 @@ private struct UpdateRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(row.app.name).font(.body.weight(.medium)).lineLimit(1)
                     HStack(spacing: 4) {
-                        Text("\(row.app.displayVersion) → \(row.update.version)")
-                        if let channel = row.update.channel {
-                            Text(channel.uppercased())
-                                .font(.caption2.weight(.semibold))
-                                .padding(.horizontal, 4)
-                                .background(.orange.opacity(0.2), in: Capsule())
-                                .foregroundStyle(.orange)
-                        }
+                        Text(versionLine)
                         Text("·")
-                        Label(row.update.source.label, systemImage: row.update.source.symbolName)
-                            .labelStyle(.titleAndIcon)
+                        Text(row.update.source.label)
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -308,6 +298,13 @@ private struct UpdateRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
+    }
+
+    private var versionLine: String {
+        if let channel = row.update.channel {
+            return "\(row.app.displayVersion) → \(row.update.version) \(channel)"
+        }
+        return "\(row.app.displayVersion) → \(row.update.version)"
     }
 
     private var actionTitle: String {
@@ -393,26 +390,28 @@ private struct ToolRow: View {
     let message: String?
     let upgrade: () -> Void
 
+    private var toolDetail: String {
+        var parts = ["\(tool.installedVersion) → \(tool.latestVersion)"]
+        if tool.isRebuild { parts.append("rebuild") }
+        if let summary = tool.summary { parts.append(summary) }
+        return parts.joined(separator: " · ")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 10) {
-                Image(systemName: "shippingbox")
-                    .font(.system(size: 16))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 32)
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(tool.name).font(.body.weight(.medium).monospaced()).lineLimit(1)
+                    Group {
                         if tool.isRebuild {
-                            Text("REBUILD")
-                                .font(.caption2.weight(.semibold))
-                                .padding(.horizontal, 4)
-                                .background(.secondary.opacity(0.15), in: Capsule())
-                                .foregroundStyle(.secondary)
+                            Text(tool.name)
                                 .help("Same release, rebuilt by Homebrew against newer libraries.")
+                        } else {
+                            Text(tool.name)
                         }
                     }
-                    Text("\(tool.installedVersion) → \(tool.latestVersion)\(tool.summary.map { " · \($0)" } ?? "")")
+                    .font(.body.weight(.medium).monospaced())
+                    .lineLimit(1)
+                    Text(toolDetail)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
@@ -436,7 +435,6 @@ private struct ToolRow: View {
                     .font(.caption)
                     .foregroundStyle(.orange)
                     .textSelection(.enabled)
-                    .padding(.leading, 42)
             }
         }
         .padding(.horizontal, 16)
@@ -570,8 +568,12 @@ enum IconThumbnail {
             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
         ) else { return empty }
         let previous = NSGraphicsContext.current
-        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
-        source.draw(in: NSRect(x: 0, y: 0, width: points, height: points))
+        let graphics = NSGraphicsContext(cgContext: context, flipped: false)
+        graphics.imageInterpolation = .high
+        NSGraphicsContext.current = graphics
+        // The context is pixel-sized. Drawing in points would leave the icon in
+        // one corner of a mostly empty bitmap.
+        source.draw(in: NSRect(x: 0, y: 0, width: CGFloat(pixels), height: CGFloat(pixels)))
         NSGraphicsContext.current = previous
         guard let cgImage = context.makeImage() else { return empty }
         let image = NSImage(cgImage: cgImage, size: NSSize(width: points, height: points))

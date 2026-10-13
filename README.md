@@ -65,14 +65,15 @@ UpdateBar.app/Contents/MacOS/UpdateBar --install <bundle ID>   # Sparkle or Home
 
 Homebrew's cask (~20 MB) and formula (~30 MB) indexes are cached in
 `~/Library/Application Support/UpdateBar/` and revalidated with their ETag at
-most every ten minutes. Repeat checks reuse decoded indexes within that freshness
-window; failed revalidation shows a warning while using a valid cached copy.
+most every ten minutes. A check copies out only the fields it uses and does
+not build objects for the rest of the file.
+Those decoded values are released when the check finishes. Failed revalidation
+shows a warning while using a valid cached copy.
 Platform-specific Homebrew variations are applied for this Mac. Only the Homebrew
 prefix used by the installer is scanned, and app ownership is checked against
 resolved Caskroom artifacts. Hiding command-line tools also skips their scan.
-The decoded indexes are released when the check finishes, instead of staying
-in memory until the next one. Icons in the menu are small bitmaps, and the
-network client does not keep a response cache.
+Icons in the menu are small bitmaps, and the network client does not keep a
+response cache.
 
 App and tool installers share one reservation, including all queued apps in a
 batch. Concurrent refresh requests share work; changes during a check trigger a

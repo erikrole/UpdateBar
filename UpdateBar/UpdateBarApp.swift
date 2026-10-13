@@ -34,7 +34,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         configurePopover()
         configureStatusItem()
-        configureOutsideClickMonitor()
         observeStore()
         store.start()
     }
@@ -51,7 +50,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         updateStatusItem()
     }
 
-    private func configureOutsideClickMonitor() {
+    /// Installed only while the menu is open. A permanent global monitor wakes
+    /// the process on every click, including while the menu is closed.
+    private func installOutsideClickMonitor() {
+        guard outsideClickMonitor == nil else { return }
         outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
         ) { [weak self] _ in
@@ -62,12 +64,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    private func removeOutsideClickMonitor() {
+        guard let outsideClickMonitor else { return }
+        NSEvent.removeMonitor(outsideClickMonitor)
+        self.outsideClickMonitor = nil
+    }
+
+    @objc private func popoverDidClose(_ notification: Notification) {
+        removeOutsideClickMonitor()
+    }
+
     private func configurePopover() {
         popover.behavior = .transient
         popover.animates = true
         popover.contentSize = NSSize(width: 380, height: 520)
         popover.contentViewController = NSHostingController(
             rootView: UpdateBarView(store: store, launchAtLogin: launchAtLogin)
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(popoverDidClose(_:)),
+            name: NSPopover.didCloseNotification,
+            object: popover
         )
     }
 
@@ -161,6 +179,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else {
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.becomeKey()
+            installOutsideClickMonitor()
         }
     }
 }

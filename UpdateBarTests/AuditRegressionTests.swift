@@ -71,9 +71,57 @@ final class SourceRegressionTests: XCTestCase {
         XCTAssertTrue(result.isCovered(app.id, by: .homebrew))
     }
 
-    func testInvalidIndexShapeThrowsInsteadOfClaimingNoUpdates() {
+    func testInvalidIndexShapeThrowsInsteadOfClaimingNoUpdates() throws {
         XCTAssertThrowsError(try HomebrewChecker.decode(Data("{}".utf8)))
         XCTAssertThrowsError(try FormulaChecker.decode(Data("{}".utf8)))
+        XCTAssertThrowsError(try HomebrewChecker.decode(Data("[{".utf8)))
+        XCTAssertThrowsError(try HomebrewChecker.decode(Data("[1]".utf8)))
+        XCTAssertThrowsError(try HomebrewChecker.decode(Data("[] trailing".utf8)))
+        let empty = try HomebrewChecker.decode(Data(" \n[]\n ".utf8))
+        XCTAssertEqual(empty.count, 0)
+    }
+
+    func testScannerKeepsNeededFieldsAndSkipsTheRest() throws {
+        let casks = Data(#"""
+        [{"token":"view\"er","version":"3.1,77","homepage":"https://example.com/a\/b","url":"https://example.com/arm.zip","disabled":true,
+          "artifacts":[{"uninstall":[{"quit":"com.vendor.Viewer"},{"signal":{"TERM":"com.vendor.Viewer"}}]},{"app":["Apps/Viewer.app",{"target":"/Applications"}]},{"binary":["tool"]}],
+          "caveats":"ignore","depends_on":{"macos":{">=":["14"]}},
+          "variations":{"sonoma":{"version":"4.0","url":null,"disabled":false,"artifacts":[{"app":["Viewer Sonoma.app"],"uninstall":[{"quit":["one","two"]}]}]},
+                        "arm64_sonoma":{"auto_updates":true,"version":"1\u00202"}}}]
+        """#.utf8)
+        let sonoma = try XCTUnwrap(HomebrewChecker.decode(casks, platform: "sonoma").first)
+        XCTAssertEqual(sonoma.token, "view\"er")
+        XCTAssertEqual(sonoma.version, "4.0")
+        XCTAssertEqual(sonoma.homepage?.absoluteString, "https://example.com/a/b")
+        XCTAssertNil(sonoma.downloadURL)
+        XCTAssertFalse(sonoma.isDisabled)
+        XCTAssertEqual(sonoma.appNames, ["Viewer Sonoma.app"])
+        XCTAssertEqual(sonoma.bundleIdentifiers, ["one", "two"])
+        XCTAssertFalse(sonoma.autoUpdates)
+        let arm = try XCTUnwrap(HomebrewChecker.decode(casks, platform: "arm64_sonoma").first)
+        XCTAssertEqual(arm.version, "1 2")
+        XCTAssertEqual(arm.downloadURL?.lastPathComponent, "arm.zip")
+        XCTAssertTrue(arm.isDisabled)
+        XCTAssertEqual(arm.appNames, ["Viewer.app"])
+        XCTAssertEqual(arm.bundleIdentifiers, ["com.vendor.Viewer"])
+        XCTAssertTrue(arm.autoUpdates)
+
+        let formulae = Data(#"""
+        [{"name":"tool","versions":{"stable":"5.0","head":"HEAD"},"revision":1,"desc":"A \"tool\"","homepage":"https://ex.com","oldnames":["old"],
+          "bottle":{"stable":{"files":{"sonoma":{"cellar":":any","url":"https://example.bottle","sha256":"abc"}},"rebuild":0}},
+          "variations":{"sonoma":{"versions":{"stable":"4.0"},"revision":2,"oldnames":["older","oldest"],"disabled":true,"desc":null}}}]
+        """#.utf8)
+        let overridden = try XCTUnwrap(FormulaChecker.decode(formulae, platform: "sonoma").first)
+        XCTAssertEqual(overridden.packageVersion, "4.0_2")
+        XCTAssertEqual(overridden.oldNames, ["older", "oldest"])
+        XCTAssertTrue(overridden.isDisabled)
+        XCTAssertNil(overridden.summary)
+        XCTAssertEqual(overridden.homepage, URL(string: "https://ex.com"))
+        let base = try XCTUnwrap(FormulaChecker.decode(formulae, platform: "other").first)
+        XCTAssertEqual(base.packageVersion, "5.0_1")
+        XCTAssertEqual(base.summary, "A \"tool\"")
+        XCTAssertEqual(base.oldNames, ["old"])
+        XCTAssertFalse(base.isDisabled)
     }
 }
 

@@ -33,10 +33,330 @@ protocol UpdateChecker: Sendable {
     func check(_ apps: [InstalledApp]) async -> CheckerResult
 }
 
-/// A Swift string that does not share storage with a JSON object. Bridged
-/// strings would keep Homebrew's whole parsed index alive.
-func detachedCopy(_ string: String) -> String {
-    String(decoding: Data(string.utf8), as: UTF8.self)
+/// Walks Homebrew's index bytes and copies out only the fields a check needs.
+/// `JSONSerialization` turns the cask and formula files into a few hundred
+/// megabytes of tiny objects, and those pages were still resident after the
+/// check (about 276 MB). Skipping the rest — bottle URLs, checksums, caveats —
+/// never allocates them.
+struct JSONParseError: Error, Sendable {}
+
+enum JSONScan {
+    static func with<T>(_ data: Data, _ body: (JSONCursor) throws -> T) throws -> T {
+        try data.withUnsafeBytes { raw in
+            let cursor = JSONCursor(bytes: raw.bindMemory(to: UInt8.self))
+            let value = try body(cursor)
+            try cursor.finishDocument()
+            return value
+        }
+    }
+}
+
+/// Valid only for the `JSONScan.with` call that created it. The pointer is the
+/// file buffer; strings we keep are copies.
+final class JSONCursor {
+    private let bytes: UnsafeBufferPointer<UInt8>
+    private var index = 0
+    private static let maxDepth = 64
+
+    init(bytes: UnsafeBufferPointer<UInt8>) {
+        self.bytes = bytes
+    }
+
+    func finishDocument() throws {
+        skipWhitespace()
+        guard index == bytes.count else { throw JSONParseError() }
+    }
+
+    func peekByte() -> UInt8? {
+        index < bytes.count ? bytes[index] : nil
+    }
+
+    func readArray(_ each: (JSONCursor) throws -> Void) throws {
+        skipWhitespace()
+        try expect(UInt8(ascii: "["))
+        skipWhitespace()
+        if consume(UInt8(ascii: "]")) { return }
+        while true {
+            try each(self)
+            skipWhitespace()
+            if consume(UInt8(ascii: "]")) { return }
+            try expect(UInt8(ascii: ","))
+            skipWhitespace()
+        }
+    }
+
+    func readObject(_ each: (JSONCursor, String) throws -> Void) throws {
+        skipWhitespace()
+        try expect(UInt8(ascii: "{"))
+        skipWhitespace()
+        if consume(UInt8(ascii: "}")) { return }
+        while true {
+            let key = try readString()
+            skipWhitespace()
+            try expect(UInt8(ascii: ":"))
+            skipWhitespace()
+            try each(self, key)
+            skipWhitespace()
+            if consume(UInt8(ascii: "}")) { return }
+            try expect(UInt8(ascii: ","))
+            skipWhitespace()
+        }
+    }
+
+    /// A JSON string, or nil when the value is null or some other type.
+    func takeString() throws -> String? {
+        guard peekByte() == UInt8(ascii: "\"") else {
+            try skipValue()
+            return nil
+        }
+        return try readString()
+    }
+
+    /// `true` or `false`. Anything else, including null, is false — the same as
+    /// a failed `as? Bool` cast on a parsed object.
+    func takeBool() throws -> Bool {
+        switch peekByte() {
+        case UInt8(ascii: "t"):
+            try expectLiteral("true")
+            return true
+        case UInt8(ascii: "f"):
+            try expectLiteral("false")
+            return false
+        default:
+            try skipValue()
+            return false
+        }
+    }
+
+    /// A whole number, or 0 when the value isn't one.
+    func takeInt() throws -> Int {
+        guard let byte = peekByte(), byte == UInt8(ascii: "-") || isDigit(byte) else {
+            try skipValue()
+            return 0
+        }
+        let start = index
+        try skipNumber()
+        guard (start..<index).allSatisfy({ bytes[$0] != UInt8(ascii: ".") && bytes[$0] != UInt8(ascii: "e") && bytes[$0] != UInt8(ascii: "E") }),
+              let value = Int(string(from: start, to: index))
+        else { return 0 }
+        return value
+    }
+
+    func skipValue() throws {
+        skipWhitespace()
+        guard let byte = peekByte() else { throw JSONParseError() }
+        switch byte {
+        case UInt8(ascii: "\""): try skipString()
+        case UInt8(ascii: "t"): try expectLiteral("true")
+        case UInt8(ascii: "f"): try expectLiteral("false")
+        case UInt8(ascii: "n"): try expectLiteral("null")
+        case UInt8(ascii: "{"), UInt8(ascii: "["): try skipContainer()
+        case UInt8(ascii: "-"), UInt8(ascii: "0")...UInt8(ascii: "9"): try skipNumber()
+        default: throw JSONParseError()
+        }
+    }
+
+    func readString() throws -> String {
+        try expect(UInt8(ascii: "\""))
+        let start = index
+        while index < bytes.count {
+            let byte = bytes[index]
+            if byte == UInt8(ascii: "\\") {
+                return try readEscapedString(copying: start)
+            }
+            if byte == UInt8(ascii: "\"") {
+                let value = string(from: start, to: index)
+                index += 1
+                return value
+            }
+            if byte < 0x20 { throw JSONParseError() }
+            index += 1
+        }
+        throw JSONParseError()
+    }
+
+    private func readEscapedString(copying start: Int) throws -> String {
+        var out: [UInt8] = []
+        out.reserveCapacity(index - start + 16)
+        out.append(contentsOf: bytes[start..<index])
+        while index < bytes.count {
+            let byte = bytes[index]
+            if byte == UInt8(ascii: "\"") {
+                index += 1
+                return String(decoding: out, as: UTF8.self)
+            }
+            if byte == UInt8(ascii: "\\") {
+                index += 1
+                guard index < bytes.count else { throw JSONParseError() }
+                let escaped = bytes[index]
+                index += 1
+                switch escaped {
+                case UInt8(ascii: "\""): out.append(UInt8(ascii: "\""))
+                case UInt8(ascii: "\\"): out.append(UInt8(ascii: "\\"))
+                case UInt8(ascii: "/"): out.append(UInt8(ascii: "/"))
+                case UInt8(ascii: "b"): out.append(0x08)
+                case UInt8(ascii: "f"): out.append(0x0C)
+                case UInt8(ascii: "n"): out.append(0x0A)
+                case UInt8(ascii: "r"): out.append(0x0D)
+                case UInt8(ascii: "t"): out.append(0x09)
+                case UInt8(ascii: "u"): try appendUnicode(to: &out)
+                default: throw JSONParseError()
+                }
+                continue
+            }
+            if byte < 0x20 { throw JSONParseError() }
+            out.append(byte)
+            index += 1
+        }
+        throw JSONParseError()
+    }
+
+    private func appendUnicode(to out: inout [UInt8]) throws {
+        let unit = try readHex4()
+        if let scalar = Unicode.Scalar(UInt32(unit)) {
+            out.append(contentsOf: String(scalar).utf8)
+            return
+        }
+        guard UTF16.isLeadSurrogate(unit),
+              index + 1 < bytes.count,
+              bytes[index] == UInt8(ascii: "\\"),
+              bytes[index + 1] == UInt8(ascii: "u")
+        else {
+            out.append(contentsOf: "\u{FFFD}".utf8)
+            return
+        }
+        index += 2
+        let trail = try readHex4()
+        guard UTF16.isTrailSurrogate(trail) else {
+            out.append(contentsOf: "\u{FFFD}".utf8)
+            return
+        }
+        let combined = 0x10000 + (Int(unit) - 0xD800) * 0x400 + (Int(trail) - 0xDC00)
+        if let scalar = Unicode.Scalar(UInt32(combined)) {
+            out.append(contentsOf: String(scalar).utf8)
+        } else {
+            out.append(contentsOf: "\u{FFFD}".utf8)
+        }
+    }
+
+    private func readHex4() throws -> UInt16 {
+        guard index + 4 <= bytes.count else { throw JSONParseError() }
+        var value: UInt16 = 0
+        for _ in 0..<4 {
+            let byte = bytes[index]
+            index += 1
+            value <<= 4
+            switch byte {
+            case UInt8(ascii: "0")...UInt8(ascii: "9"):
+                value += UInt16(byte - UInt8(ascii: "0"))
+            case UInt8(ascii: "a")...UInt8(ascii: "f"):
+                value += UInt16(byte - UInt8(ascii: "a") + 10)
+            case UInt8(ascii: "A")...UInt8(ascii: "F"):
+                value += UInt16(byte - UInt8(ascii: "A") + 10)
+            default:
+                throw JSONParseError()
+            }
+        }
+        return value
+    }
+
+    private func skipWhitespace() {
+        while index < bytes.count {
+            switch bytes[index] {
+            case 0x20, 0x09, 0x0A, 0x0D: index += 1
+            default: return
+            }
+        }
+    }
+
+    private func consume(_ byte: UInt8) -> Bool {
+        guard index < bytes.count, bytes[index] == byte else { return false }
+        index += 1
+        return true
+    }
+
+    private func expect(_ byte: UInt8) throws {
+        guard consume(byte) else { throw JSONParseError() }
+    }
+
+    private func expectLiteral(_ literal: StaticString) throws {
+        // StaticString has no `utf8` view. Read the code units through the buffer.
+        let matched = literal.withUTF8Buffer { buffer -> Int in
+            guard index + buffer.count <= bytes.count else { return -1 }
+            for offset in 0..<buffer.count {
+                if bytes[index + offset] != buffer[offset] { return -1 }
+            }
+            return buffer.count
+        }
+        guard matched >= 0 else { throw JSONParseError() }
+        index += matched
+    }
+
+    private func skipString() throws {
+        try expect(UInt8(ascii: "\""))
+        while index < bytes.count {
+            let byte = bytes[index]
+            if byte == UInt8(ascii: "\\") {
+                guard index + 1 < bytes.count else { throw JSONParseError() }
+                index += 2
+                continue
+            }
+            index += 1
+            if byte == UInt8(ascii: "\"") { return }
+            if byte < 0x20 { throw JSONParseError() }
+        }
+        throw JSONParseError()
+    }
+
+    private func skipContainer() throws {
+        guard let opening = peekByte() else { throw JSONParseError() }
+        var closers: [UInt8] = [opening == UInt8(ascii: "{") ? UInt8(ascii: "}") : UInt8(ascii: "]")]
+        index += 1
+        while index < bytes.count {
+            let byte = bytes[index]
+            if byte == UInt8(ascii: "\"") {
+                try skipString()
+                continue
+            }
+            index += 1
+            if byte == UInt8(ascii: "{") || byte == UInt8(ascii: "[") {
+                guard closers.count < Self.maxDepth else { throw JSONParseError() }
+                closers.append(byte == UInt8(ascii: "{") ? UInt8(ascii: "}") : UInt8(ascii: "]"))
+            } else if byte == UInt8(ascii: "}") || byte == UInt8(ascii: "]") {
+                guard closers.popLast() == byte else { throw JSONParseError() }
+                if closers.isEmpty { return }
+            }
+        }
+        throw JSONParseError()
+    }
+
+    private func skipNumber() throws {
+        _ = consume(UInt8(ascii: "-"))
+        let whole = index
+        while index < bytes.count, isDigit(bytes[index]) { index += 1 }
+        guard index > whole else { throw JSONParseError() }
+        if consume(UInt8(ascii: ".")) {
+            let fraction = index
+            while index < bytes.count, isDigit(bytes[index]) { index += 1 }
+            guard index > fraction else { throw JSONParseError() }
+        }
+        if peekByte() == UInt8(ascii: "e") || peekByte() == UInt8(ascii: "E") {
+            index += 1
+            if peekByte() == UInt8(ascii: "+") || peekByte() == UInt8(ascii: "-") { index += 1 }
+            let exponent = index
+            while index < bytes.count, isDigit(bytes[index]) { index += 1 }
+            guard index > exponent else { throw JSONParseError() }
+        }
+    }
+
+    private func string(from start: Int, to end: Int) -> String {
+        guard start < end else { return "" }
+        return String(decoding: UnsafeBufferPointer(rebasing: bytes[start..<end]), as: UTF8.self)
+    }
+
+    private func isDigit(_ byte: UInt8) -> Bool {
+        byte >= UInt8(ascii: "0") && byte <= UInt8(ascii: "9")
+    }
 }
 
 /// Small HTTP helper shared by the checkers: short timeouts, no cookies, HTTPS only.

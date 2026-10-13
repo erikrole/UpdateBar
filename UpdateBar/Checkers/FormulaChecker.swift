@@ -71,23 +71,111 @@ struct FormulaChecker: Sendable {
 
     static func decode(_ data: Data, platform: String = HomebrewPlatform.tag) throws -> [Formula] {
         try autoreleasepool {
-            let array = try HomebrewPlatform.records(data, tag: platform)
-            return array.compactMap { json in
-                guard let name = json["name"] as? String,
-                      let versions = json["versions"] as? [String: Any],
-                      let stable = versions["stable"] as? String
-                else { return nil }
-                let revision = json["revision"] as? Int ?? 0
-                return Formula(
-                    name: detachedCopy(name),
-                    oldNames: (json["oldnames"] as? [String] ?? []).map(detachedCopy),
-                    packageVersion: detachedCopy(revision > 0 ? "\(stable)_\(revision)" : stable),
-                    summary: (json["desc"] as? String).map(detachedCopy),
-                    homepage: (json["homepage"] as? String).map(detachedCopy).flatMap(URL.init(string:)),
-                    isDisabled: (json["disabled"] as? Bool) == true
-                )
+            try JSONScan.with(data) { cursor in
+                var formulae: [Formula] = []
+                try cursor.readArray { cursor in
+                    guard cursor.peekByte() == UInt8(ascii: "{") else { throw JSONParseError() }
+                    if let formula = try readFormula(from: cursor, platform: platform) {
+                        formulae.append(formula)
+                    }
+                }
+                return formulae
             }
         }
+    }
+
+    private static func readFormula(from cursor: JSONCursor, platform: String) throws -> Formula? {
+        var fields = FormulaFields()
+        var overlay: FormulaFields?
+        try cursor.readObject { cursor, key in
+            if key == "variations" {
+                overlay = try variation(from: cursor, platform: platform)
+            } else {
+                try apply(key, to: &fields, from: cursor)
+            }
+        }
+        if let overlay { fields.apply(overlay) }
+        return fields.formula()
+    }
+
+    private static func variation(from cursor: JSONCursor, platform: String) throws -> FormulaFields? {
+        guard cursor.peekByte() == UInt8(ascii: "{") else {
+            try cursor.skipValue()
+            return nil
+        }
+        var match: FormulaFields?
+        try cursor.readObject { cursor, key in
+            guard key == platform, cursor.peekByte() == UInt8(ascii: "{") else {
+                try cursor.skipValue()
+                return
+            }
+            var fields = FormulaFields()
+            try cursor.readObject { cursor, key in
+                try apply(key, to: &fields, from: cursor)
+            }
+            match = fields
+        }
+        return match
+    }
+
+    private static func apply(_ key: String, to fields: inout FormulaFields, from cursor: JSONCursor) throws {
+        switch key {
+        case "name":
+            fields.keys.insert(key)
+            fields.name = try cursor.takeString()
+        case "versions":
+            fields.keys.insert(key)
+            fields.stable = try stableVersion(from: cursor)
+        case "revision":
+            fields.keys.insert(key)
+            fields.revision = try cursor.takeInt()
+        case "oldnames":
+            fields.keys.insert(key)
+            fields.oldNames = try stringArray(from: cursor)
+        case "desc":
+            fields.keys.insert(key)
+            fields.summary = try cursor.takeString()
+        case "homepage":
+            fields.keys.insert(key)
+            fields.homepage = try cursor.takeString()
+        case "disabled":
+            fields.keys.insert(key)
+            fields.disabled = try cursor.takeBool()
+        default:
+            try cursor.skipValue()
+        }
+    }
+
+    private static func stableVersion(from cursor: JSONCursor) throws -> String? {
+        guard cursor.peekByte() == UInt8(ascii: "{") else {
+            try cursor.skipValue()
+            return nil
+        }
+        var stable: String?
+        try cursor.readObject { cursor, key in
+            if key == "stable" {
+                stable = try cursor.takeString()
+            } else {
+                try cursor.skipValue()
+            }
+        }
+        return stable
+    }
+
+    private static func stringArray(from cursor: JSONCursor) throws -> [String] {
+        guard cursor.peekByte() == UInt8(ascii: "[") else {
+            try cursor.skipValue()
+            return []
+        }
+        var values: [String] = []
+        try cursor.readArray { cursor in
+            if cursor.peekByte() == UInt8(ascii: "\"") {
+                values.append(try cursor.readString())
+            } else {
+                try cursor.skipValue()
+            }
+        }
+        return values
     }
 
     static func installedFormulae(in cellars: [URL]) -> [String: Installed] {
@@ -143,5 +231,40 @@ struct FormulaChecker: Sendable {
             ))
         }
         return updates.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+}
+
+/// Fields read from one formula object. `keys` records which names a variation
+/// actually set, so an absent key does not wipe the base value.
+private struct FormulaFields {
+    var name: String?
+    var stable: String?
+    var revision = 0
+    var oldNames: [String] = []
+    var summary: String?
+    var homepage: String?
+    var disabled = false
+    var keys: Set<String> = []
+
+    mutating func apply(_ overlay: FormulaFields) {
+        if overlay.keys.contains("name") { name = overlay.name }
+        if overlay.keys.contains("versions") { stable = overlay.stable }
+        if overlay.keys.contains("revision") { revision = overlay.revision }
+        if overlay.keys.contains("oldnames") { oldNames = overlay.oldNames }
+        if overlay.keys.contains("desc") { summary = overlay.summary }
+        if overlay.keys.contains("homepage") { homepage = overlay.homepage }
+        if overlay.keys.contains("disabled") { disabled = overlay.disabled }
+    }
+
+    func formula() -> FormulaChecker.Formula? {
+        guard let name, let stable else { return nil }
+        return FormulaChecker.Formula(
+            name: name,
+            oldNames: oldNames,
+            packageVersion: revision > 0 ? "\(stable)_\(revision)" : stable,
+            summary: summary,
+            homepage: homepage.flatMap(URL.init(string:)),
+            isDisabled: disabled
+        )
     }
 }
