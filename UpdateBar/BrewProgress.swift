@@ -62,6 +62,21 @@ enum BrewOutputParser {
         if line.hasSuffix(" was successfully upgraded!") {
             return Event(names: [shortName(String(line.dropLast(" was successfully upgraded!".count)))], stage: .done)
         }
+        // "Error: ffmpeg: Failed to download resource" / "Error: Cask 'docker' is not installed."
+        if line.hasPrefix("Error:") {
+            let rest = String(line.dropFirst("Error:".count)).trimmingCharacters(in: .whitespaces)
+            if rest.hasPrefix("Cask '"), let end = rest.dropFirst("Cask '".count).firstIndex(of: "'") {
+                let name = String(rest[rest.index(rest.startIndex, offsetBy: "Cask '".count)..<end])
+                return name.isEmpty ? nil : Event(names: [shortName(name)], stage: .failed)
+            }
+            if let name = rest.split(separator: ":", maxSplits: 1).first {
+                let token = shortName(String(name))
+                let allowed = token.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "@" || $0 == "+" || $0 == "_" }
+                if !token.isEmpty, !token.contains(" "), allowed {
+                    return Event(names: [token], stage: .failed)
+                }
+            }
+        }
         return nil
     }
 
@@ -88,9 +103,16 @@ struct BrewRunProgress: Equatable, Sendable {
 
     mutating func apply(_ event: BrewOutputParser.Event) {
         for name in event.names where stages[name] != nil {
-            // Never move a finished package backwards.
-            if stages[name] == .done { continue }
+            // A finished or failed package stays that way if later lines mention it.
+            if stages[name] == .done || stages[name] == .failed { continue }
             stages[name] = event.stage
+        }
+    }
+
+    /// Packages brew did not finish when the run stops short.
+    mutating func markUnfinishedFailed() {
+        for name in order where stages[name] != .done {
+            stages[name] = .failed
         }
     }
 

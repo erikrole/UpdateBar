@@ -33,16 +33,20 @@ struct SparkleChecker: UpdateChecker {
             guard (200..<300).contains(response.statusCode) else {
                 throw HTTPClient.HTTPError.status(response.statusCode)
             }
-            let items = AppcastParser.parse(data)
-            guard !items.isEmpty else {
+            let parsed = autoreleasepool { () -> (items: [AppcastItem], update: AvailableUpdate?) in
+                let items = AppcastParser.parse(data)
+                let update = newestCompatible(items, systemVersion: systemVersion, includeBetas: includeBetas)
+                    .flatMap { update(for: app, item: $0) }
+                return (items, update)
+            }
+            guard !parsed.items.isEmpty else {
                 result.failures.append(CheckFailure(source: .sparkle, subject: app.name, message: "Its update feed had no releases."))
                 return result
             }
             result.cover(app.bundleIdentifier, by: .sparkle)
-            let channels = Set(items.compactMap(\.channel))
+            let channels = Set(parsed.items.compactMap(\.channel))
             if !channels.isEmpty { result.feedChannels[app.bundleIdentifier] = channels }
-            if let item = newestCompatible(items, systemVersion: systemVersion, includeBetas: includeBetas),
-               let update = update(for: app, item: item) {
+            if let update = parsed.update {
                 result.updates.append(update)
             }
         } catch {

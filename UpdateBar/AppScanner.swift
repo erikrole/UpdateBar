@@ -48,13 +48,17 @@ struct AppScanner: Sendable {
     }
 
     static func readApp(at url: URL) -> InstalledApp? {
-        let plistURL = url.appending(path: "Contents/Info.plist")
-        guard let data = try? Data(contentsOf: plistURL),
-              let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
-        else { return nil }
-        return makeApp(url: url, plist: plist, hasReceipt: FileManager.default.fileExists(
-            atPath: url.appending(path: "Contents/_MASReceipt/receipt").path
-        ))
+        // One pool per app. Scanning /Applications on a reused thread would
+        // otherwise keep every plist object graph until the thread exits.
+        autoreleasepool {
+            let plistURL = url.appending(path: "Contents/Info.plist")
+            guard let data = try? Data(contentsOf: plistURL),
+                  let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any]
+            else { return nil }
+            return makeApp(url: url, plist: plist, hasReceipt: FileManager.default.fileExists(
+                atPath: url.appending(path: "Contents/_MASReceipt/receipt").path
+            ))
+        }
     }
 
     /// Builds an app from parsed Info.plist values; split out so tests can feed plists directly.

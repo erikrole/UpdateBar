@@ -30,4 +30,23 @@ final class VersionComparatorTests: XCTestCase {
         XCTAssertTrue(VersionComparator.isNewer("1349", than: "1348"))
         XCTAssertFalse(VersionComparator.isNewer("1348", than: "1348"))
     }
+
+    func testPrereleaseRanksAndDottedIdentifiers() {
+        XCTAssertEqual(VersionComparator.compare("1.0dev1", to: "1.0alpha1"), .older)
+        XCTAssertEqual(VersionComparator.compare("1.0a2", to: "1.0b1"), .older)
+        XCTAssertEqual(VersionComparator.compare("1.0beta2", to: "1.0rc1"), .older)
+        XCTAssertEqual(VersionComparator.compare("1.0rc1", to: "1.0"), .older)
+        XCTAssertEqual(VersionComparator.compare("2.0-beta.10", to: "2.0-beta.2"), .newer)
+        XCTAssertEqual(VersionComparator.compare("1.1", to: "1.beta"), .newer)
+    }
+
+    func testSeparatorsWhitespaceAndRebuildSuffixes() {
+        XCTAssertEqual(VersionComparator.compare("1.2", to: "1-2"), .same)
+        XCTAssertEqual(VersionComparator.compare("  V1.2.3 ", to: "1.2.3"), .same)
+        XCTAssertEqual(VersionComparator.compare("v1", to: "1"), .same)
+        XCTAssertEqual(VersionComparator.compare("version1", to: "1"), .older)
+        XCTAssertEqual(VersionComparator.compare("9.0.2_1", to: "9.0.2"), .newer)
+        XCTAssertEqual(VersionComparator.compare("1.10.0", to: "1.10"), .same)
+        XCTAssertEqual(VersionComparator.compare("1.2.3", to: "1.2.3"), .same)
+    }
 }

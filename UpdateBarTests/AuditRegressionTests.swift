@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 @testable import UpdateBar
 
@@ -203,6 +204,37 @@ final class IndexRegressionTests: XCTestCase, @unchecked Sendable {
         }
         session.invalidateAndCancel()
     }
+
+    func testSharedClientDoesNotRetainResponseBodies() {
+        let configuration = HTTPClient.shared.session.configuration
+        XCTAssertEqual(configuration.urlCache?.memoryCapacity, Optional(0))
+        XCTAssertEqual(configuration.urlCache?.diskCapacity, Optional(0))
+        XCTAssertEqual(configuration.requestCachePolicy, .reloadIgnoringLocalCacheData)
+    }
+
+    func testDecodedIndexDropsEntriesWhenTheWindowEnds() async throws {
+        let index = try fixture("valid", ttl: 600)
+        let cache = DecodedIndex<[Int]>()
+        let loaded = try await cache.load(from: index) { try JSONDecoder().decode([Int].self, from: $0) }
+        let fresh = loaded.validatedAt.addingTimeInterval(30)
+        let stillFresh = await cache.retainsFreshEntry(for: index, now: fresh)
+        XCTAssertTrue(stillFresh)
+        await cache.evictExpired(at: fresh)
+        let kept = await cache.retainsFreshEntry(for: index, now: fresh)
+        XCTAssertTrue(kept)
+        let expired = loaded.validatedAt.addingTimeInterval(601)
+        await cache.evictExpired(at: expired)
+        let dropped = await cache.retainsFreshEntry(for: index, now: expired)
+        XCTAssertFalse(dropped)
+    }
+
+    func testZeroFreshnessWindowIsNotRetained() async throws {
+        let index = try fixture("valid", ttl: 0)
+        let cache = DecodedIndex<[Int]>()
+        _ = try await cache.load(from: index) { try JSONDecoder().decode([Int].self, from: $0) }
+        let retained = await cache.retainsFreshEntry(for: index)
+        XCTAssertFalse(retained)
+    }
 }
 
 private actor Gate {
@@ -361,5 +393,79 @@ final class StoreRegressionTests: XCTestCase {
         await store.checkNow(notify: false)
         XCTAssertEqual(store.statusSummary, "Some updates couldn’t be checked")
         XCTAssertEqual(defaults.stringArray(forKey: "notifiedUpdateIDs"), ["existing"])
+    }
+
+    func testPartialAppBatchContinuesAndWarns() async {
+        var batch = snapshot()
+        let second = InstalledApp(bundleIdentifier: "test.Second", name: "Second", url: URL(filePath: "/tmp/Second.app"), shortVersion: "1", buildVersion: nil, sparkleFeedURL: nil, hasAppStoreReceipt: false)
+        batch.apps.append(second)
+        batch.result.updates.append(AvailableUpdate(bundleIdentifier: second.id, source: .homebrew, version: "2", comparableVersion: "2", releaseDate: nil, releaseNotes: nil, releaseNotesURL: nil, downloadURL: nil, action: .brewUpgrade(token: "second")))
+        let result = batch
+        let refreshed = expectation(description: "refresh")
+        let checks = Counter(), installs = Counter()
+        let store = UpdateStore(defaults: preferences(), collect: { _, _, _ in
+            if checks.increment() == 2 { refreshed.fulfill() }
+            return result
+        }, installApp: { row, _, _ in
+            _ = installs.increment()
+            return row.app.bundleIdentifier == "test.App" ? "needs a password" : nil
+        })
+        await store.checkNow(notify: false)
+        store.updateAllInPlace()
+        await fulfillment(of: [refreshed], timeout: 2)
+        XCTAssertEqual(installs.value, 2)
+        XCTAssertEqual(store.banner, UpdateStore.Banner(text: "Updated 1 of 2. App still needs an update", isWarning: true))
+        XCTAssertEqual(store.actionMessages["test.App"], "needs a password")
+        XCTAssertNil(store.actionMessages["test.Second"])
+        XCTAssertTrue(store.canInstallUpdates)
+    }
+
+    func testPartialToolUpgradeWarnsWithoutASuccessBanner() async {
+        var snap = snapshot()
+        snap.tools.append(ToolUpdate(name: "ffmpeg", installedVersion: "1", latestVersion: "2", requested: true, summary: nil, homepage: nil))
+        let result = snap
+        let refreshed = expectation(description: "refresh")
+        let checks = Counter()
+        let store = UpdateStore(defaults: preferences(), collect: { _, _, _ in
+            if checks.increment() == 2 { refreshed.fulfill() }
+            return result
+        }, installTools: { names, progress in
+            progress(.init(names: [names[0]], stage: .done))
+            return .failure("Error: ffmpeg: download failed")
+        })
+        await store.checkNow(notify: false)
+        store.upgradeAllTools()
+        await fulfillment(of: [refreshed], timeout: 2)
+        XCTAssertEqual(store.banner, UpdateStore.Banner(text: "Upgraded 1 of 2 before brew stopped", isWarning: true))
+        XCTAssertEqual(store.actionMessages[UpdateStore.allToolsID], "Error: ffmpeg: download failed")
+        XCTAssertNil(store.toolRun)
+        XCTAssertTrue(store.canInstallUpdates)
+    }
+
+    func testFailedToolUpgradeDoesNotLookSuccessful() async {
+        let result = snapshot()
+        let refreshed = expectation(description: "refresh")
+        let checks = Counter()
+        let store = UpdateStore(defaults: preferences(), collect: { _, _, _ in
+            if checks.increment() == 2 { refreshed.fulfill() }
+            return result
+        }, installTools: { _, _ in .failure("Error: locked") })
+        await store.checkNow(notify: false)
+        store.upgradeAllTools()
+        await fulfillment(of: [refreshed], timeout: 2)
+        XCTAssertEqual(store.banner, UpdateStore.Banner(text: "Couldn't upgrade tool", isWarning: true))
+        XCTAssertEqual(store.actionMessages[UpdateStore.allToolsID], "Error: locked")
+        XCTAssertTrue(store.canInstallUpdates)
+    }
+}
+
+@MainActor
+final class IconThumbnailTests: XCTestCase {
+    func testFittedIconIsASmallBitmap() {
+        let source = NSImage(size: NSSize(width: 512, height: 512))
+        let fitted = IconThumbnail.fitted(from: source)
+        XCTAssertEqual(fitted.size, NSSize(width: 32, height: 32))
+        let width = fitted.cgImage(forProposedRect: nil, context: nil, hints: nil)?.width ?? 0
+        XCTAssertEqual(width, 64)
     }
 }

@@ -33,6 +33,12 @@ protocol UpdateChecker: Sendable {
     func check(_ apps: [InstalledApp]) async -> CheckerResult
 }
 
+/// A Swift string that does not share storage with a JSON object. Bridged
+/// strings would keep Homebrew's whole parsed index alive.
+func detachedCopy(_ string: String) -> String {
+    String(decoding: Data(string.utf8), as: UTF8.self)
+}
+
 /// Small HTTP helper shared by the checkers: short timeouts, no cookies, HTTPS only.
 struct HTTPClient: Sendable {
     let session: URLSession
@@ -45,6 +51,10 @@ struct HTTPClient: Sendable {
         configuration.timeoutIntervalForResource = timeout * 3
         configuration.httpAdditionalHeaders = ["User-Agent": "UpdateBar/\(Self.appVersion)"]
         configuration.httpShouldSetCookies = false
+        // A default cache keeps the cask and formula responses (about 50 MB)
+        // for the life of this process. UpdateBar already stores those on disk.
+        configuration.urlCache = URLCache(memoryCapacity: 0, diskCapacity: 0, directory: nil)
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         session = URLSession(configuration: configuration, delegate: HTTPSRedirectDelegate(), delegateQueue: nil)
     }
 

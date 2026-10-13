@@ -13,25 +13,38 @@ struct HomebrewChecker: UpdateChecker {
 
     func check(_ apps: [InstalledApp]) async -> CheckerResult {
         do {
-            let snapshot = try await Self.decodedIndex.load(from: index) { try Self.decode($0) }
-            let installed = Self.installedCasks(in: caskrooms)
-            var result = Self.evaluate(apps, casks: snapshot.value, installed: installed)
-            if let warning = snapshot.warning {
-                result.failures.append(CheckFailure(source: .homebrew, subject: "Homebrew", message: warning))
-            }
+            let result = try await evaluated(apps)
+            // `evaluated` is the last owner of the cask array. Drop the actor's
+            // copy too, then return the parse's empty pages to the system.
+            await Self.decodedIndex.removeAll()
+            TransientMemory.release()
             return result
         } catch {
+            await Self.decodedIndex.removeAll()
+            TransientMemory.release()
             return CheckerResult(failures: [
                 CheckFailure(source: .homebrew, subject: "Homebrew", message: error.localizedDescription),
             ])
         }
     }
 
+    private func evaluated(_ apps: [InstalledApp]) async throws -> CheckerResult {
+        let snapshot = try await Self.decodedIndex.load(from: index) { try Self.decode($0) }
+        let installed = Self.installedCasks(in: caskrooms)
+        var result = Self.evaluate(apps, casks: snapshot.value, installed: installed)
+        if let warning = snapshot.warning {
+            result.failures.append(CheckFailure(source: .homebrew, subject: "Homebrew", message: warning))
+        }
+        return result
+    }
+
     // MARK: - Cask index
 
     static func decode(_ data: Data, platform: String = HomebrewPlatform.tag) throws -> [Cask] {
-        let array = try HomebrewPlatform.records(data, tag: platform)
-        return array.compactMap(Cask.init(json:))
+        try autoreleasepool {
+            let array = try HomebrewPlatform.records(data, tag: platform)
+            return array.compactMap(Cask.init(json:))
+        }
     }
 
     /// Resolve the installed .app artifacts to their real destinations. Cask
@@ -156,13 +169,14 @@ struct Cask: Sendable, Equatable {
     }
 
     init?(json: [String: Any]) {
-        guard let token = json["token"] as? String, let version = json["version"] as? String else { return nil }
+        guard let token = (json["token"] as? String).map(detachedCopy),
+              let version = (json["version"] as? String).map(detachedCopy) else { return nil }
         var appNames: [String] = []
         var bundleIdentifiers: Set<String> = []
         for artifact in json["artifacts"] as? [[String: Any]] ?? [] {
             if let apps = artifact["app"] as? [Any] {
                 for case let name as String in apps where name.hasSuffix(".app") {
-                    appNames.append((name as NSString).lastPathComponent)
+                    appNames.append(detachedCopy((name as NSString).lastPathComponent))
                 }
             }
             // `uninstall quit:` and `zap` often name the app's bundle ID, which lets a
@@ -170,8 +184,8 @@ struct Cask: Sendable, Equatable {
             for key in ["uninstall", "zap"] {
                 for case let directive as [String: Any] in artifact[key] as? [Any] ?? [] {
                     for value in [directive["quit"], directive["signal"]] {
-                        if let id = value as? String { bundleIdentifiers.insert(id) }
-                        if let ids = value as? [String] { bundleIdentifiers.formUnion(ids) }
+                        if let id = value as? String { bundleIdentifiers.insert(detachedCopy(id)) }
+                        if let ids = value as? [String] { bundleIdentifiers.formUnion(ids.map(detachedCopy)) }
                     }
                 }
             }
@@ -182,8 +196,8 @@ struct Cask: Sendable, Equatable {
             version: version,
             appNames: appNames,
             bundleIdentifiers: bundleIdentifiers,
-            homepage: (json["homepage"] as? String).flatMap(URL.init(string:)),
-            downloadURL: (json["url"] as? String).flatMap(URL.init(string:)),
+            homepage: (json["homepage"] as? String).map(detachedCopy).flatMap(URL.init(string:)),
+            downloadURL: (json["url"] as? String).map(detachedCopy).flatMap(URL.init(string:)),
             isDisabled: (json["disabled"] as? Bool) == true || (json["deprecated"] as? Bool) == true,
             autoUpdates: (json["auto_updates"] as? Bool) == true
         )

@@ -41,7 +41,7 @@ struct AppStoreChecker: UpdateChecker {
     }
 
     static func decode(_ data: Data) throws -> [StoreLookup] {
-        try JSONDecoder.iso8601.decode(LookupResponse.self, from: data).results
+        try autoreleasepool { try JSONDecoder.iso8601.decode(LookupResponse.self, from: data).results }
     }
 
     static func evaluate(_ apps: [InstalledApp], lookups: [StoreLookup]) -> CheckerResult {

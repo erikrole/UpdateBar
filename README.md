@@ -6,13 +6,14 @@ the idea behind [Latest](https://github.com/mangerlahn/Latest); no Latest code
 is used.
 
 - Lives in the menu bar with a count of pending updates and rechecks in the
-  background (every 6 hours by default), with a notification when something new
-  appears.
+  background (every 6 hours by default; 1, 3, 12, and 24 hours are the other
+  choices), with a notification when something new appears. It can launch at login.
 - Checks four sources: the Mac App Store, each app's own Sparkle feed, Homebrew
   casks, and GitHub Releases. Apps with a `com.erole.` bundle ID are linked to
   `erikrole/<name>` automatically.
 - Shows each app once. An app's own updater decides: when the App Store or its
   Sparkle feed says it is current, a Homebrew or GitHub hint can't override that.
+  The full order is in [source precedence](design-plans/source-precedence.md).
 - Compares against the version actually on disk, so apps that updated themselves
   aren't flagged the way `brew outdated --greedy` flags them.
 - Shows release notes inline, and lets you skip a version or ignore an app.
@@ -28,7 +29,14 @@ is used.
   (via the embedded [Sparkle](https://sparkle-project.org) framework, verified
   against each app's own EdDSA key; the app quits and reopens if it was running),
   and the App Store's Updates page for store apps. "Update all" runs every
-  in-place update one after another.
+  in-place update one after another. Chrome, Edge, Brave, and Vivaldi open their
+  own update page; other self-updating apps are launched.
+
+A failed update stays on that row and does not cancel the rest of Update all.
+A Homebrew run that stops midway keeps what it already upgraded and says how
+many were left. If brew needs a password, the message includes the Terminal
+command to run. A source that could not be checked is listed as a failure, and
+UpdateBar does not call that a clean bill of health.
 
 Out of scope on purpose: a root install helper and Apple's private App Store
 frameworks. Feeds that only work over plain HTTP are reported, not trusted.
@@ -52,7 +60,7 @@ notifications or changes to notification history:
 
 ```sh
 UpdateBar.app/Contents/MacOS/UpdateBar --report
-UpdateBar.app/Contents/MacOS/UpdateBar --install <bundle ID>   # installs one pending update, then exits
+UpdateBar.app/Contents/MacOS/UpdateBar --install <bundle ID>   # Sparkle or Homebrew only, then exits; status 1 otherwise
 ```
 
 Homebrew's cask (~20 MB) and formula (~30 MB) indexes are cached in
@@ -62,6 +70,9 @@ window; failed revalidation shows a warning while using a valid cached copy.
 Platform-specific Homebrew variations are applied for this Mac. Only the Homebrew
 prefix used by the installer is scanned, and app ownership is checked against
 resolved Caskroom artifacts. Hiding command-line tools also skips their scan.
+The decoded indexes are released when the check finishes, instead of staying
+in memory until the next one. Icons in the menu are small bitmaps, and the
+network client does not keep a response cache.
 
 App and tool installers share one reservation, including all queued apps in a
 batch. Concurrent refresh requests share work; changes during a check trigger a

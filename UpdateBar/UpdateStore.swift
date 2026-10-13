@@ -12,8 +12,13 @@ final class UpdateStore {
     private(set) var tools: [ToolUpdate] = []
     /// The brew run in progress for tools, if any.
     private(set) var toolRun: BrewRunProgress?
-    /// A short result line shown after a tools run, e.g. "Upgraded 14 tools".
-    private(set) var toolNotice: String?
+    /// A short result line after an install or upgrade. Warnings stay until the next run.
+    private(set) var banner: Banner?
+
+    struct Banner: Equatable, Sendable {
+        var text: String
+        var isWarning: Bool
+    }
     private(set) var failures: [CheckFailure] = []
     private(set) var appCount = 0
     private(set) var lastChecked: Date?
@@ -313,9 +318,19 @@ final class UpdateStore {
         guard canInstallUpdates, !targets.isEmpty else { return }
         // Reserve the entire batch before yielding: buttons and queued tasks cannot
         // start a second installer or a competing Homebrew formula upgrade.
-        runningActions.formUnion(targets.map(\.id))
+        let ids = targets.map(\.id)
+        runningActions.formUnion(ids)
         for row in targets { actionMessages[row.id] = "Waiting…" }
+        banner = nil
         Task {
+            var released = false
+            defer {
+                if !released {
+                    activeAppID = nil
+                    runningActions.subtract(ids)
+                }
+            }
+            var failed: [String] = []
             for row in targets {
                 activeAppID = row.id
                 actionMessages[row.id] = "Starting update…"
@@ -324,10 +339,25 @@ final class UpdateStore {
                     self.actionMessages[row.id] = status
                 }
                 activeAppID = nil
-                actionMessages[row.id] = message
+                if let message {
+                    actionMessages[row.id] = message
+                    failed.append(row.app.name)
+                } else {
+                    actionMessages[row.id] = nil
+                }
                 // Keep the batch reserved until every installer has finished.
             }
-            runningActions.subtract(targets.map(\.id))
+            if !failed.isEmpty {
+                let updated = targets.count - failed.count
+                let names = failed.joined(separator: ", ")
+                let text = updated == 0
+                    ? "Couldn't update \(names)"
+                    : "Updated \(updated) of \(targets.count). \(names) still \(failed.count == 1 ? "needs" : "need") an update"
+                banner = Banner(text: text, isWarning: true)
+            }
+            activeAppID = nil
+            runningActions.subtract(ids)
+            released = true
             await checkNow(refreshAfterCurrent: true)
         }
     }
@@ -370,34 +400,60 @@ final class UpdateStore {
     private func upgradeTools(_ names: [String], actionID: String) {
         guard !names.isEmpty, canInstallUpdates else { return }
         actionMessages[actionID] = nil
-        toolNotice = nil
+        banner = nil
         runningActions.insert(actionID)
         toolRun = BrewRunProgress(names: names)
         let runID = UUID()
         toolRunID = runID
+        let events = ToolEventBuffer()
         Task {
-            let outcome = await installTools(names) { event in
-                Task { @MainActor in
-                    guard self.toolRunID == runID else { return }
-                    self.toolRun?.apply(event)
+            var released = false
+            defer {
+                if !released {
+                    if toolRunID == runID { toolRunID = nil }
+                    runningActions.remove(actionID)
+                    toolRun = nil
                 }
             }
-            toolRunID = nil
-            runningActions.remove(actionID)
-            let finished = toolRun?.finished ?? 0
-            toolRun = nil
+            let outcome = await installTools(names) { event in
+                events.append(event)
+                Task { @MainActor in
+                    guard self.toolRunID == runID else { return }
+                    for event in events.drain() { self.toolRun?.apply(event) }
+                }
+            }
+            // Progress hops to the main actor asynchronously. Apply whatever is
+            // still queued before deciding how much of the run finished.
+            for event in events.drain() where toolRunID == runID {
+                toolRun?.apply(event)
+            }
             switch outcome {
             case .success:
                 let notice = names.count == 1 ? "Upgraded \(names[0])" : "Upgraded \(names.count) tools"
-                toolNotice = notice
+                let shown = Banner(text: notice, isWarning: false)
+                banner = shown
                 Task {
                     try? await Task.sleep(for: .seconds(30))
-                    if toolNotice == notice { toolNotice = nil }
+                    if banner == shown { banner = nil }
                 }
             case let .failure(message):
+                toolRun?.markUnfinishedFailed()
+                let finished = toolRun?.finished ?? 0
                 actionMessages[actionID] = message
-                if finished > 0 { toolNotice = "Upgraded \(finished) of \(names.count) before brew stopped" }
+                let text: String
+                if finished == 0 {
+                    text = names.count == 1 ? "Couldn't upgrade \(names[0])" : "Couldn't upgrade those tools"
+                } else if finished < names.count {
+                    text = "Upgraded \(finished) of \(names.count) before brew stopped"
+                } else {
+                    text = "Brew stopped after upgrading \(finished)"
+                }
+                banner = Banner(text: text, isWarning: true)
             }
+            if toolRunID == runID { toolRunID = nil }
+            runningActions.remove(actionID)
+            toolRun = nil
+            released = true
             await checkNow(refreshAfterCurrent: true)
         }
     }
@@ -445,6 +501,25 @@ final class UpdateStore {
 
     private static var isRunningTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+}
+
+/// Brew progress is produced off the main actor. The buffer keeps every event
+/// so the final tally still sees lines that have not been drawn yet.
+private final class ToolEventBuffer: @unchecked Sendable {
+    private let lock = NSLock()
+    private var events: [BrewOutputParser.Event] = []
+
+    func append(_ event: BrewOutputParser.Event) {
+        lock.withLock { events.append(event) }
+    }
+
+    func drain() -> [BrewOutputParser.Event] {
+        lock.withLock {
+            let copy = events
+            events.removeAll(keepingCapacity: false)
+            return copy
+        }
     }
 }
 
