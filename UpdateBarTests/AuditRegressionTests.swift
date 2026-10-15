@@ -508,6 +508,131 @@ final class StoreRegressionTests: XCTestCase {
 }
 
 @MainActor
+final class BackgroundCheckSchedulerTests: XCTestCase {
+    func testScheduleToleranceMatchesTheInterval() {
+        let hour = BackgroundCheckSchedule(hours: 1)
+        XCTAssertEqual(hour.interval, 3600)
+        XCTAssertEqual(hour.tolerance, hour.interval)
+        let day = BackgroundCheckSchedule(hours: 24)
+        XCTAssertEqual(day.tolerance, 24 * 3600)
+        let clamped = BackgroundCheckSchedule(hours: 0)
+        XCTAssertEqual(clamped.interval, 3600)
+        XCTAssertEqual(clamped.tolerance, clamped.interval)
+    }
+
+    func testDeferredInvocationDoesNotCheck() {
+        let ran = Counter()
+        let sink = ResultSink()
+        BackgroundCheckRunner.handle(shouldDefer: true, perform: { _ = ran.increment() }) { sink.result = $0 }
+        XCTAssertEqual(ran.value, 0)
+        XCTAssertEqual(sink.result, .deferred)
+    }
+
+    func testAllowedInvocationChecksThenFinishes() async {
+        let ran = Counter()
+        let finished = expectation(description: "finished")
+        BackgroundCheckRunner.handle(shouldDefer: false, perform: { _ = ran.increment() }) { result in
+            XCTAssertEqual(ran.value, 1)
+            XCTAssertEqual(result, .finished)
+            finished.fulfill()
+        }
+        await fulfillment(of: [finished], timeout: 2)
+    }
+
+    func testReschedulingInvalidatesThePreviousActivity() {
+        var made: [ScriptedBackgroundActivity] = []
+        let scheduler = BackgroundCheckScheduler { _ in
+            let activity = ScriptedBackgroundActivity()
+            made.append(activity)
+            return activity as any BackgroundActivityScheduling
+        }
+        scheduler.schedule(intervalHours: 6) { }
+        scheduler.schedule(intervalHours: 1) { }
+        XCTAssertEqual(made.count, 2)
+        XCTAssertTrue(made[0].invalidated)
+        XCTAssertNil(made[0].handler)
+        XCTAssertFalse(made[1].invalidated)
+        XCTAssertEqual(made[1].interval, 3600)
+        XCTAssertEqual(made[1].tolerance, 3600)
+        XCTAssertTrue(made[1].repeats)
+        XCTAssertEqual(made[1].qualityOfService, .utility)
+    }
+
+    func testRepeatingCheckUsesWideToleranceAndSkipsDeferredWakes() async {
+        let activity = ScriptedBackgroundActivity()
+        let scheduler = BackgroundCheckScheduler { _ in activity as any BackgroundActivityScheduling }
+        let checks = Counter()
+        let name = "UpdateBarTests.scheduler.\(UUID())"
+        let defaults = UserDefaults(suiteName: name)!
+        defaults.set(false, forKey: "notificationsEnabled")
+        addTeardownBlock { UserDefaults.standard.removePersistentDomain(forName: name) }
+        let store = UpdateStore(defaults: defaults, collect: { _, _, _ in
+            _ = checks.increment()
+            return .init()
+        }, backgroundChecks: scheduler)
+        store.checkIntervalHours = 12
+
+        XCTAssertEqual(activity.interval, 12 * 3600)
+        XCTAssertEqual(activity.tolerance, activity.interval)
+        XCTAssertTrue(activity.repeats)
+        XCTAssertEqual(activity.qualityOfService, .utility)
+        XCTAssertEqual(checks.value, 0, "Scheduling the repeating check must not run it")
+
+        activity.shouldDefer = true
+        activity.fire()
+        XCTAssertEqual(activity.results, [.deferred])
+        XCTAssertEqual(checks.value, 0)
+        XCTAssertNil(store.lastChecked)
+
+        activity.shouldDefer = false
+        let finished = expectation(description: "check finished")
+        activity.onCompletion = { result in
+            if result == .finished { finished.fulfill() }
+        }
+        activity.fire()
+        await fulfillment(of: [finished], timeout: 2)
+        XCTAssertEqual(checks.value, 1)
+        XCTAssertNotNil(store.lastChecked)
+        XCTAssertEqual(activity.results, [.deferred, .finished])
+    }
+}
+
+/// Stands in for `NSBackgroundActivityScheduler` so tests can fire or defer a check
+/// without registering a system activity or waiting out the real interval.
+private final class ResultSink: @unchecked Sendable {
+    var result: NSBackgroundActivityResult?
+}
+
+private final class ScriptedBackgroundActivity: BackgroundActivityScheduling, @unchecked Sendable {
+    var repeats = false
+    var interval: TimeInterval = 0
+    var tolerance: TimeInterval = 0
+    var qualityOfService: QualityOfService = .default
+    var shouldDefer = false
+    private(set) var invalidated = false
+    private(set) var handler: (@Sendable (NSBackgroundActivityCompletionHandler) -> Void)?
+    private(set) var results: [NSBackgroundActivityResult] = []
+    var onCompletion: (@Sendable (NSBackgroundActivityResult) -> Void)?
+
+    func schedule(_ block: @escaping @Sendable (NSBackgroundActivityCompletionHandler) -> Void) {
+        invalidated = false
+        handler = block
+    }
+
+    func invalidate() {
+        invalidated = true
+        handler = nil
+    }
+
+    func fire() {
+        handler? { result in
+            self.results.append(result)
+            self.onCompletion?(result)
+        }
+    }
+}
+
+@MainActor
 final class IconThumbnailTests: XCTestCase {
     func testFittedIconIsASmallBitmap() {
         let source = NSImage(size: NSSize(width: 512, height: 512))

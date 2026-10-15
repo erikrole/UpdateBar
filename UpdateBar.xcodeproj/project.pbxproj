@@ -29,6 +29,12 @@
 		E4323703FF706CAF2AA431B8 /* HomebrewChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F0E409103E781AFF9B31C3F /* HomebrewChecker.swift */; };
 		F8D2F4DAECFB2715FDBC3DC8 /* GitHubChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE61661C3E0639E4013F054 /* GitHubChecker.swift */; };
 		F91A72F5E9BA11B33F53F0D7 /* VersionComparatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC283181845BE799B947F3CF /* VersionComparatorTests.swift */; };
+		1E90A4C7B3D85F26A0C7E1B4 /* BackgroundCheckScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F2B9C14D8E0473AB5A1F0C6 /* BackgroundCheckScheduler.swift */; };
+		3B7C1F90E4A65D28B0C9A3E2 /* BrewRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D5A0E31C7F24B96A2E8D1C0 /* BrewRunner.swift */; };
+		5C1D9A82E7B04F36A8D2C1E0 /* ToolUpgradeActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A6E8B45F1C04D79B3A7E0D5 /* ToolUpgradeActions.swift */; };
+		7F3A2D60C9E14B85A6F0D3C1 /* UpdateCheckCycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E7C4A19B6D83F25A1C0E8B7 /* UpdateCheckCycle.swift */; };
+		9A17D3E05C8B4F62A1D09E47 /* AppUpdateActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C8E1A07B2D64F19A0E5C3B8 /* AppUpdateActions.swift */; };
+		C8A1E5D03B274F96A2C0E7B5 /* UpdateNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4D8E2A17C905F36A0B1C8E4 /* UpdateNotifier.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,6 +72,12 @@
 		C74D674E6BED3502B6384FEC /* UpdateBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateBarView.swift; sourceTree = "<group>"; };
 		DC283181845BE799B947F3CF /* VersionComparatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionComparatorTests.swift; sourceTree = "<group>"; };
 		FDE61661C3E0639E4013F054 /* GitHubChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubChecker.swift; sourceTree = "<group>"; };
+		0E7C4A19B6D83F25A1C0E8B7 /* UpdateCheckCycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateCheckCycle.swift; sourceTree = "<group>"; };
+		2A6E8B45F1C04D79B3A7E0D5 /* ToolUpgradeActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolUpgradeActions.swift; sourceTree = "<group>"; };
+		4C8E1A07B2D64F19A0E5C3B8 /* AppUpdateActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateActions.swift; sourceTree = "<group>"; };
+		6F2B9C14D8E0473AB5A1F0C6 /* BackgroundCheckScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundCheckScheduler.swift; sourceTree = "<group>"; };
+		8D5A0E31C7F24B96A2E8D1C0 /* BrewRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrewRunner.swift; sourceTree = "<group>"; };
+		B4D8E2A17C905F36A0B1C8E4 /* UpdateNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateNotifier.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -127,13 +139,19 @@
 			isa = PBXGroup;
 			children = (
 				AC5490F5D1A4740AD7E4C9F5 /* AppScanner.swift */,
+				4C8E1A07B2D64F19A0E5C3B8 /* AppUpdateActions.swift */,
+				6F2B9C14D8E0473AB5A1F0C6 /* BackgroundCheckScheduler.swift */,
 				8529FB7C8EE54F21E4A1F432 /* BrewProgress.swift */,
+				8D5A0E31C7F24B96A2E8D1C0 /* BrewRunner.swift */,
 				C42B5DD1E98B6862FADDF21A /* Info.plist */,
 				734BE46E1EBD1A2D47AB2781 /* LaunchAtLoginController.swift */,
 				422767A185DF56A59314595D /* Models.swift */,
 				17F08557CC0A48FFA69C5E67 /* SparkleInstaller.swift */,
+				2A6E8B45F1C04D79B3A7E0D5 /* ToolUpgradeActions.swift */,
 				A524B9E8B2059D0E778E4F18 /* UpdateBarApp.swift */,
 				C74D674E6BED3502B6384FEC /* UpdateBarView.swift */,
+				0E7C4A19B6D83F25A1C0E8B7 /* UpdateCheckCycle.swift */,
+				B4D8E2A17C905F36A0B1C8E4 /* UpdateNotifier.swift */,
 				87CCCFF05642CF69E6AF4D7D /* UpdateResolver.swift */,
 				7F9FB943E6B1097D9891CC29 /* UpdateStore.swift */,
 				BD8D272453B3FE46C34D2899 /* VersionComparator.swift */,
@@ -241,7 +259,10 @@
 			files = (
 				7713F5C1C6698DE268AB7D74 /* AppScanner.swift in Sources */,
 				34023FB975D1FBF5F02C4E24 /* AppStoreChecker.swift in Sources */,
+				9A17D3E05C8B4F62A1D09E47 /* AppUpdateActions.swift in Sources */,
+				1E90A4C7B3D85F26A0C7E1B4 /* BackgroundCheckScheduler.swift in Sources */,
 				658CA0C00845D7D8F13E834A /* BrewProgress.swift in Sources */,
+				3B7C1F90E4A65D28B0C9A3E2 /* BrewRunner.swift in Sources */,
 				82552BD5B21F5C03EBC3F02F /* FormulaChecker.swift in Sources */,
 				F8D2F4DAECFB2715FDBC3DC8 /* GitHubChecker.swift in Sources */,
 				E4323703FF706CAF2AA431B8 /* HomebrewChecker.swift in Sources */,
@@ -250,9 +271,12 @@
 				AB920BADF055526840251AA1 /* Models.swift in Sources */,
 				502EC85786F01CBC8C60DE03 /* SparkleChecker.swift in Sources */,
 				D7FB5B02346D5AA88FC3E556 /* SparkleInstaller.swift in Sources */,
+				5C1D9A82E7B04F36A8D2C1E0 /* ToolUpgradeActions.swift in Sources */,
 				B09EFA8CBF4DAC6BE63D0582 /* UpdateBarApp.swift in Sources */,
 				B83DE0BB936F0A9447C76100 /* UpdateBarView.swift in Sources */,
+				7F3A2D60C9E14B85A6F0D3C1 /* UpdateCheckCycle.swift in Sources */,
 				0FD505553CA2C6FA280644E6 /* UpdateChecker.swift in Sources */,
+				C8A1E5D03B274F96A2C0E7B5 /* UpdateNotifier.swift in Sources */,
 				3846A1B5E9B10F72E503502E /* UpdateResolver.swift in Sources */,
 				7D45898A07738FCB87203CFA /* UpdateStore.swift in Sources */,
 				43E0BD1B31F80358AC0724E7 /* VersionComparator.swift in Sources */,
