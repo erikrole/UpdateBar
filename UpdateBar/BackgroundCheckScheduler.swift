@@ -61,7 +61,7 @@ enum BackgroundCheckRunner {
     static func handle(
         shouldDefer: Bool,
         perform: @escaping @MainActor () async -> Void,
-        completion: @escaping @Sendable (NSBackgroundActivityResult) -> Void
+        completion: @escaping @Sendable (NSBackgroundActivityScheduler.Result) -> Void
     ) {
         // Set when now is a bad time, including just after the user wakes the
         // Mac and starts using it. Postponing leaves the retry to the system.
@@ -82,7 +82,7 @@ protocol BackgroundActivityScheduling: AnyObject {
     var tolerance: TimeInterval { get set }
     var qualityOfService: QualityOfService { get set }
     var shouldDefer: Bool { get }
-    func schedule(_ block: @escaping @Sendable (NSBackgroundActivityCompletionHandler) -> Void)
+    func schedule(_ block: @escaping @Sendable (NSBackgroundActivityScheduler.CompletionHandler) -> Void)
     func invalidate()
 }
 
@@ -116,7 +116,7 @@ final class SystemBackgroundActivity: BackgroundActivityScheduling {
 
     var shouldDefer: Bool { activity.shouldDefer }
 
-    func schedule(_ block: @escaping @Sendable (NSBackgroundActivityCompletionHandler) -> Void) {
+    func schedule(_ block: @escaping @Sendable (NSBackgroundActivityScheduler.CompletionHandler) -> Void) {
         activity.schedule(block)
     }
 
@@ -134,7 +134,7 @@ private final class ActivityBox: @unchecked Sendable {
 
 /// The completion handler has to be called from the main actor after the check.
 private final class CompletionBox: @unchecked Sendable {
-    private let completion: NSBackgroundActivityCompletionHandler
-    init(_ completion: @escaping NSBackgroundActivityCompletionHandler) { self.completion = completion }
-    func callAsFunction(_ result: NSBackgroundActivityResult) { completion(result) }
+    private let completion: NSBackgroundActivityScheduler.CompletionHandler
+    init(_ completion: @escaping NSBackgroundActivityScheduler.CompletionHandler) { self.completion = completion }
+    func callAsFunction(_ result: NSBackgroundActivityScheduler.Result) { completion(result) }
 }

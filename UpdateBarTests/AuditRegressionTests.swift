@@ -600,7 +600,7 @@ final class BackgroundCheckSchedulerTests: XCTestCase {
 /// Stands in for `NSBackgroundActivityScheduler` so tests can fire or defer a check
 /// without registering a system activity or waiting out the real interval.
 private final class ResultSink: @unchecked Sendable {
-    var result: NSBackgroundActivityResult?
+    var result: NSBackgroundActivityScheduler.Result?
 }
 
 private final class ScriptedBackgroundActivity: BackgroundActivityScheduling, @unchecked Sendable {
@@ -610,11 +610,11 @@ private final class ScriptedBackgroundActivity: BackgroundActivityScheduling, @u
     var qualityOfService: QualityOfService = .default
     var shouldDefer = false
     private(set) var invalidated = false
-    private(set) var handler: (@Sendable (NSBackgroundActivityCompletionHandler) -> Void)?
-    private(set) var results: [NSBackgroundActivityResult] = []
-    var onCompletion: (@Sendable (NSBackgroundActivityResult) -> Void)?
+    private(set) var handler: (@Sendable (NSBackgroundActivityScheduler.CompletionHandler) -> Void)?
+    private(set) var results: [NSBackgroundActivityScheduler.Result] = []
+    var onCompletion: (@Sendable (NSBackgroundActivityScheduler.Result) -> Void)?
 
-    func schedule(_ block: @escaping @Sendable (NSBackgroundActivityCompletionHandler) -> Void) {
+    func schedule(_ block: @escaping @Sendable (NSBackgroundActivityScheduler.CompletionHandler) -> Void) {
         invalidated = false
         handler = block
     }
