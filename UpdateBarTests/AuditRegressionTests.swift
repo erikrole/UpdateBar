@@ -528,15 +528,12 @@ final class BackgroundCheckSchedulerTests: XCTestCase {
         XCTAssertEqual(sink.result, .deferred)
     }
 
-    func testAllowedInvocationChecksThenFinishes() async {
-        let ran = Counter()
-        let finished = expectation(description: "finished")
-        BackgroundCheckRunner.handle(shouldDefer: false, perform: { _ = ran.increment() }) { result in
-            XCTAssertEqual(ran.value, 1)
-            XCTAssertEqual(result, .finished)
-            finished.fulfill()
-        }
-        await fulfillment(of: [finished], timeout: 2)
+    func testAllowedInvocationFinishesBeforeTheCheckReturns() async {
+        let ran = expectation(description: "check ran")
+        let sink = ResultSink()
+        BackgroundCheckRunner.handle(shouldDefer: false, perform: { ran.fulfill() }) { sink.result = $0 }
+        XCTAssertEqual(sink.result, .finished)
+        await fulfillment(of: [ran], timeout: 2)
     }
 
     func testReschedulingInvalidatesThePreviousActivity() {
@@ -566,8 +563,9 @@ final class BackgroundCheckSchedulerTests: XCTestCase {
         let defaults = UserDefaults(suiteName: name)!
         defaults.set(false, forKey: "notificationsEnabled")
         addTeardownBlock { UserDefaults.standard.removePersistentDomain(forName: name) }
+        let checked = expectation(description: "check ran")
         let store = UpdateStore(defaults: defaults, collect: { _, _, _ in
-            _ = checks.increment()
+            if checks.increment() == 1 { checked.fulfill() }
             return .init()
         }, backgroundChecks: scheduler)
         store.checkIntervalHours = 12
@@ -585,15 +583,11 @@ final class BackgroundCheckSchedulerTests: XCTestCase {
         XCTAssertNil(store.lastChecked)
 
         activity.shouldDefer = false
-        let finished = expectation(description: "check finished")
-        activity.onCompletion = { result in
-            if result == .finished { finished.fulfill() }
-        }
         activity.fire()
-        await fulfillment(of: [finished], timeout: 2)
+        XCTAssertEqual(activity.results, [.deferred, .finished])
+        await fulfillment(of: [checked], timeout: 2)
         XCTAssertEqual(checks.value, 1)
         XCTAssertNotNil(store.lastChecked)
-        XCTAssertEqual(activity.results, [.deferred, .finished])
     }
 }
 

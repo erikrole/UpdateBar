@@ -28,10 +28,9 @@ final class BackgroundCheckScheduler {
         scheduled.qualityOfService = .utility
         let box = ActivityBox(scheduled)
         scheduled.schedule { completion in
-            let finish = CompletionBox(completion)
-            BackgroundCheckRunner.handle(shouldDefer: box.shouldDefer, perform: perform) { result in
-                finish(result)
-            }
+            // The SDK completion is non-escaping, so it has to run before this
+            // block returns. The check itself continues on the main actor.
+            BackgroundCheckRunner.handle(shouldDefer: box.shouldDefer, perform: perform, completion: completion)
         }
         activity = scheduled
     }
@@ -61,7 +60,7 @@ enum BackgroundCheckRunner {
     static func handle(
         shouldDefer: Bool,
         perform: @escaping @MainActor () async -> Void,
-        completion: @escaping @Sendable (NSBackgroundActivityScheduler.Result) -> Void
+        completion: (NSBackgroundActivityScheduler.Result) -> Void
     ) {
         // Set when now is a bad time, including just after the user wakes the
         // Mac and starts using it. Postponing leaves the retry to the system.
@@ -71,8 +70,8 @@ enum BackgroundCheckRunner {
         }
         Task { @MainActor in
             await perform()
-            completion(.finished)
         }
+        completion(.finished)
     }
 }
 
@@ -130,11 +129,4 @@ private final class ActivityBox: @unchecked Sendable {
     private let activity: any BackgroundActivityScheduling
     init(_ activity: any BackgroundActivityScheduling) { self.activity = activity }
     var shouldDefer: Bool { activity.shouldDefer }
-}
-
-/// The completion handler has to be called from the main actor after the check.
-private final class CompletionBox: @unchecked Sendable {
-    private let completion: NSBackgroundActivityScheduler.CompletionHandler
-    init(_ completion: @escaping NSBackgroundActivityScheduler.CompletionHandler) { self.completion = completion }
-    func callAsFunction(_ result: NSBackgroundActivityScheduler.Result) { completion(result) }
 }
