@@ -23,6 +23,9 @@ host). Fetch (com.erole.Fetch) vs the `fetch-app` FTP client is the regression c
 Own `com.erole.*` apps are checked at `erikrole/<Name>`, then `erikrole/<name>-releases` (private source,
 public releases: Fetch, Offload).
 
+Own-app GitHub releases with a `.dmg` asset install in place (`DMGInstaller`: download, mount, codesign/Team ID T26T3G8C7Q/spctl check,
+quit, swap with backup, relaunch). Non-Homebrew self-updating casks (e.g. Claude) stay "Open".
+
 Tests must use isolated defaults and fixture network responses. Never invoke
 `--install`, Homebrew upgrades, or real Sparkle installs merely to test the app.
 Do not commit cached indexes, application inventories, live reports, generated

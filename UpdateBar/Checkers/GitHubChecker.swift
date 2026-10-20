@@ -62,14 +62,14 @@ struct GitHubChecker: UpdateChecker {
             }
             let release = try autoreleasepool { try JSONDecoder.iso8601.decode(GitHubRelease.self, from: data) }
             result.cover(app.bundleIdentifier, by: .github)
-            if let update = update(for: app, release: release) { result.updates.append(update) }
+            if let update = update(for: app, release: release, repository: repository) { result.updates.append(update) }
         } catch {
             result.failures.append(CheckFailure(source: .github, subject: app.name, message: error.localizedDescription))
         }
         return result
     }
 
-    static func update(for app: InstalledApp, release: GitHubRelease) -> AvailableUpdate? {
+    static func update(for app: InstalledApp, release: GitHubRelease, repository: String? = nil) -> AvailableUpdate? {
         guard !release.draft, !release.prerelease else { return nil }
         let version = VersionComparator.normalize(release.tagName)
         guard VersionComparator.isNewer(version, than: app.displayVersion) else { return nil }
@@ -77,6 +77,9 @@ struct GitHubChecker: UpdateChecker {
             let name = asset.name.lowercased()
             return name.hasSuffix(".zip") || name.hasSuffix(".dmg") || name.hasSuffix(".pkg")
         }
+        // Own releases ship a DMG that DMGInstaller verifies against our Team ID, so they install in place.
+        let dmg = release.assets.first { $0.name.lowercased().hasSuffix(".dmg") }
+        let ownRelease = repository?.hasPrefix(automaticOwner + "/") == true
         return AvailableUpdate(
             bundleIdentifier: app.bundleIdentifier,
             source: .github,
@@ -86,7 +89,7 @@ struct GitHubChecker: UpdateChecker {
             releaseNotes: release.body?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
             releaseNotesURL: release.htmlURL,
             downloadURL: asset?.downloadURL,
-            action: .openURL(release.htmlURL)
+            action: ownRelease && dmg != nil ? .dmgInstall(dmg!.downloadURL) : .openURL(release.htmlURL)
         )
     }
 }

@@ -461,4 +461,14 @@ final class ScannerTests: XCTestCase {
         XCTAssertTrue(BrewRunner.summary(of: "==> Running installer\nsudo: a password is required", command: "brew upgrade --cask zoom").contains("brew upgrade --cask zoom"))
         XCTAssertEqual(BrewRunner.summary(of: "x\nError: Download failed\n", command: "brew upgrade"), "Error: Download failed")
     }
+
+    func testOwnReleaseWithDMGInstallsInPlace() throws {
+        let json = #"{"tag_name":"v2.0","html_url":"https://github.com/erikrole/x-releases/releases/v2.0","body":null,"draft":false,"prerelease":false,"published_at":null,"assets":[{"name":"X.dmg","browser_download_url":"https://github.com/erikrole/x-releases/releases/download/v2.0/X.dmg"}]}"#
+        let release = try JSONDecoder().decode(GitHubRelease.self, from: Data(json.utf8))
+        let installed = InstalledApp(bundleIdentifier: "com.erole.X", name: "X", url: URL(filePath: "/Applications/X.app"), shortVersion: "1.0", buildVersion: "1", sparkleFeedURL: nil, hasAppStoreReceipt: false)
+        let own = try XCTUnwrap(GitHubChecker.update(for: installed, release: release, repository: "erikrole/x-releases"))
+        XCTAssertEqual(own.action, .dmgInstall(URL(string: "https://github.com/erikrole/x-releases/releases/download/v2.0/X.dmg")!))
+        let other = try XCTUnwrap(GitHubChecker.update(for: installed, release: release, repository: "someone/x"))
+        XCTAssertEqual(other.action, .openURL(URL(string: "https://github.com/erikrole/x-releases/releases/v2.0")!))
+    }
 }

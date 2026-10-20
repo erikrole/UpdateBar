@@ -61,6 +61,8 @@ enum UpdateAction: Hashable, Sendable {
     case sparkleInstall
     /// Launch the app so its own updater takes over.
     case launchApp
+    /// Download a signed DMG, verify it, and replace the app in place (own apps only).
+    case dmgInstall(URL)
     /// Open a download or release page in the browser.
     case openURL(URL)
 }

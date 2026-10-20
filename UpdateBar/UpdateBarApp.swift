@@ -165,6 +165,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case .success: outcome = "INSTALLED \(row.app.name) \(row.update.version)"
             case let .failure(message): outcome = "FAILED \(message)"
             }
+        case let .dmgInstall(url):
+            switch await DMGInstaller.install(row.app, from: url, progress: { print("  \($0)") }) {
+            case .installed: outcome = "INSTALLED \(row.app.name) \(row.update.version)"
+            case let .failure(message): outcome = "FAILED \(message)"
+            }
         default:
             outcome = "\(row.app.name) doesn't install in place"
         }

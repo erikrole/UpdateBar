@@ -9,7 +9,7 @@ enum AppUpdateActions {
         guard !row.installsInPlace || store.canInstallUpdates else { return }
         store.actionMessages[id] = nil
         switch row.update.action {
-        case .brewUpgrade, .sparkleInstall:
+        case .brewUpgrade, .sparkleInstall, .dmgInstall:
             install([row], on: store)
         case .openAppStore:
             NSWorkspace.shared.open(URL(string: "macappstore://apps.apple.com/updates")!)
@@ -54,7 +54,7 @@ enum AppUpdateActions {
         install(store.rows.filter(\.installsInPlace), on: store)
     }
 
-    /// Runs every update that installs in place (Homebrew and Sparkle), one at a time
+    /// Runs every update that installs in place (Homebrew, Sparkle and signed DMGs), one at a time
     /// so brew doesn't lock against itself and installers don't compete.
     static func install(_ targets: [AppUpdate], on store: UpdateStore) {
         guard store.canInstallUpdates, !targets.isEmpty else { return }
@@ -117,6 +117,10 @@ enum AppUpdateActions {
             if case let .failure(message) = await SparkleInstaller.install(row.app, channels: channels, progress: progress) {
                 return message
             }
+        case let .dmgInstall(url):
+            if case let .failure(message) = await DMGInstaller.install(row.app, from: url, progress: progress) {
+                return message
+            }
         default: break
         }
         return nil
@@ -127,7 +131,7 @@ extension AppUpdate {
     /// Whether UpdateBar can install this update itself, without opening anything.
     var installsInPlace: Bool {
         switch update.action {
-        case .brewUpgrade, .sparkleInstall: true
+        case .brewUpgrade, .sparkleInstall, .dmgInstall: true
         case .openAppStore, .launchApp, .openURL: false
         }
     }
