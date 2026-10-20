@@ -270,11 +270,37 @@ final class HomebrewTests: XCTestCase {
             Cask(token: "far", version: "12.0", appNames: ["Far.app"], homepage: URL(string: "https://far.example")),
         ]
         let apps = [
-            app("com.x.Close", name: "Close", short: "1.0"),
-            app("com.x.Far", name: "Far", short: "1.0"),
+            app("com.example.Close", name: "Close", short: "1.0"),
+            app("com.example.Far", name: "Far", short: "1.0"),
         ]
         let result = HomebrewChecker.evaluate(apps, casks: casks, installed: [:])
-        XCTAssertEqual(result.updates.map(\.bundleIdentifier), ["com.x.Close"])
+        XCTAssertEqual(result.updates.map(\.bundleIdentifier), ["com.example.Close"])
+    }
+
+    /// Two different apps called Fetch: Erik's downloader (com.erole.Fetch) and Fetch Softworks' FTP client, whose cask
+    /// installs the same Fetch.app. Suggesting it would replace one app with another.
+    func testFallbackNeedsProofItIsTheSameApp() {
+        let ftp = Cask(token: "fetch-app", version: "5.8.3", appNames: ["Fetch.app"],
+                       footprintIDs: ["com.fetchsoftworks.Fetch"],
+                       homepage: URL(string: "https://fetchsoftworks.com/fetch/"),
+                       downloadURL: URL(string: "https://fetchsoftworks.com/fetch/download/Fetch_5.8.3.zip"))
+        let downloader = app("com.erole.Fetch", name: "Fetch", short: "1.4.1")
+        XCTAssertTrue(HomebrewChecker.evaluate([downloader], casks: [ftp], installed: [:]).updates.isEmpty)
+        let theirs = app("com.fetchsoftworks.Fetch", name: "Fetch", short: "5.8.0")
+        XCTAssertEqual(HomebrewChecker.evaluate([theirs], casks: [ftp], installed: [:]).updates.map(\.bundleIdentifier), ["com.fetchsoftworks.Fetch"])
+        // No IDs at all: the vendor must show up in the cask's web address.
+        let anonymous = Cask(token: "fetch-app", version: "5.8.3", appNames: ["Fetch.app"], homepage: URL(string: "https://fetchsoftworks.com/fetch/"))
+        XCTAssertTrue(HomebrewChecker.evaluate([downloader], casks: [anonymous], installed: [:]).updates.isEmpty)
+        // Installed by Homebrew is proof enough.
+        XCTAssertFalse(HomebrewChecker.evaluate([theirs], casks: [anonymous], installed: ["fetch-app": [theirs.url]]).updates.isEmpty)
+    }
+
+    func testFootprintIDsComeFromZapPaths() {
+        XCTAssertEqual(HomebrewChecker.footprintID(in: "~/Library/Preferences/com.fetchsoftworks.Fetch.plist"), "com.fetchsoftworks.Fetch")
+        XCTAssertEqual(HomebrewChecker.footprintID(in: "~/Library/Saved Application State/com.fetchsoftworks.Fetch.savedState"), "com.fetchsoftworks.Fetch")
+        XCTAssertEqual(HomebrewChecker.footprintID(in: "~/Library/Caches/com.apple.helpd/Generated/com.fetchsoftworks.fetch.help*"), "com.fetchsoftworks.fetch.help")
+        XCTAssertNil(HomebrewChecker.footprintID(in: "~/Library/Application Support/Fetch"))
+        XCTAssertNil(HomebrewChecker.footprintID(in: "~/Library/Logs/Fetch 5.8.log"))
     }
 
     func testSelfUpdatedCaskIsNotFlagged() {
@@ -314,13 +340,15 @@ final class HomebrewTests: XCTestCase {
     func testCaskJSONParsing() throws {
         let json = """
         [{"token":"iina","version":"1.5.0","homepage":"https://iina.io/","url":"https://dl.iina.io/IINA.v1.5.0.dmg",
-          "artifacts":[{"uninstall":[{"quit":"com.colliderli.iina"}]},{"app":["IINA.app"]},{"binary":["x"]}]},
+          "artifacts":[{"uninstall":[{"quit":"com.colliderli.iina"}]},{"app":["IINA.app"]},{"binary":["x"]},
+                       {"zap":[{"trash":["~/Library/Preferences/com.colliderli.iina.plist","~/Library/Application Support/IINA"]}]}]},
          {"token":"cli-only","version":"1.0","artifacts":[{"binary":["tool"]}]}]
         """
         let casks = try HomebrewChecker.decode(Data(json.utf8))
         XCTAssertEqual(casks.count, 1)
         XCTAssertEqual(casks[0].appNames, ["IINA.app"])
         XCTAssertEqual(casks[0].bundleIdentifiers, ["com.colliderli.iina"])
+        XCTAssertEqual(casks[0].footprintIDs, ["com.colliderli.iina"])
     }
 }
 

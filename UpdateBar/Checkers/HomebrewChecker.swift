@@ -119,18 +119,20 @@ struct HomebrewChecker: UpdateChecker {
             let artifacts = try artifacts(from: cursor)
             fields.appNames = artifacts.names
             fields.bundleIDs = artifacts.ids
+            fields.footprintIDs = artifacts.footprint
         default:
             try cursor.skipValue()
         }
     }
 
-    private static func artifacts(from cursor: JSONCursor) throws -> (names: [String], ids: Set<String>) {
+    private static func artifacts(from cursor: JSONCursor) throws -> (names: [String], ids: Set<String>, footprint: Set<String>) {
         guard cursor.peekByte() == UInt8(ascii: "[") else {
             try cursor.skipValue()
-            return ([], [])
+            return ([], [], [])
         }
         var names: [String] = []
         var ids = Set<String>()
+        var footprint = Set<String>()
         try cursor.readArray { cursor in
             guard cursor.peekByte() == UInt8(ascii: "{") else {
                 try cursor.skipValue()
@@ -141,13 +143,13 @@ struct HomebrewChecker: UpdateChecker {
                 case "app":
                     try appNames(from: cursor, into: &names)
                 case "uninstall", "zap":
-                    try bundleIDs(from: cursor, into: &ids)
+                    try bundleIDs(from: cursor, into: &ids, footprint: &footprint)
                 default:
                     try cursor.skipValue()
                 }
             }
         }
-        return (names, ids)
+        return (names, ids, footprint)
     }
 
     private static func appNames(from cursor: JSONCursor, into names: inout [String]) throws {
@@ -168,7 +170,7 @@ struct HomebrewChecker: UpdateChecker {
 
     /// `quit` and `signal` contribute a bundle ID only when they are a string or
     /// an array of strings. A signal dictionary names a process signal, not an ID.
-    private static func bundleIDs(from cursor: JSONCursor, into ids: inout Set<String>) throws {
+    private static func bundleIDs(from cursor: JSONCursor, into ids: inout Set<String>, footprint: inout Set<String>) throws {
         guard cursor.peekByte() == UInt8(ascii: "[") else {
             try cursor.skipValue()
             return
@@ -179,11 +181,17 @@ struct HomebrewChecker: UpdateChecker {
                 return
             }
             try cursor.readObject { cursor, key in
-                guard key == "quit" || key == "signal" else {
+                switch key {
+                case "quit", "signal":
+                    try idValues(from: cursor, into: &ids)
+                case "trash", "delete", "rmdir":
+                    // Paths like "~/Library/Preferences/com.vendor.App.plist" name the app's real bundle ID.
+                    var paths = Set<String>()
+                    try idValues(from: cursor, into: &paths)
+                    for path in paths { if let id = footprintID(in: path) { footprint.insert(id) } }
+                default:
                     try cursor.skipValue()
-                    return
                 }
-                try idValues(from: cursor, into: &ids)
             }
         }
     }
@@ -203,6 +211,21 @@ struct HomebrewChecker: UpdateChecker {
         default:
             try cursor.skipValue()
         }
+    }
+
+    /// The reverse-DNS name at the end of a zap/uninstall path, if there is one:
+    /// "~/Library/Preferences/com.vendor.App.plist" → "com.vendor.App".
+    static func footprintID(in path: String) -> String? {
+        guard var name = path.split(separator: "/").last.map(String.init) else { return nil }
+        name = name.trimmingCharacters(in: CharacterSet(charactersIn: "*"))
+        for suffix in [".plist", ".savedState", ".binarycookies", ".sfl2", ".sfl3"] where name.hasSuffix(suffix) {
+            name.removeLast(suffix.count)
+        }
+        let parts = name.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count >= 3,
+              parts.allSatisfy({ !$0.isEmpty && $0.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" } }),
+              parts[0].allSatisfy(\.isLetter) else { return nil }
+        return name
     }
 
     /// Resolve the installed .app artifacts to their real destinations. Cask
@@ -253,7 +276,10 @@ struct HomebrewChecker: UpdateChecker {
             } else if !owned.isEmpty {
                 continue
             } else {
-                guard agreeing.count == 1, let only = agreeing.first else { continue }
+                // Not installed by Homebrew, so the cask is only a guess from the app's name. Two different apps can
+                // share a name (Fetch the downloader vs Fetch the FTP client), and following the guess would replace
+                // one with the other, so the cask must also show it is this app.
+                guard agreeing.count == 1, let only = agreeing.first, identifies(only, app) else { continue }
                 cask = only
                 brewInstalled = false
             }
@@ -282,6 +308,20 @@ struct HomebrewChecker: UpdateChecker {
         return result
     }
 
+    /// Evidence that a cask is this particular app and not another one with the same name: a bundle ID the cask
+    /// declares (quit/signal) or leaves behind (zap/uninstall paths) must be the app's, or, when the cask names none,
+    /// the vendor in the app's bundle ID must appear in the cask's web address.
+    static func identifies(_ cask: Cask, _ app: InstalledApp) -> Bool {
+        let id = app.bundleIdentifier.lowercased()
+        let known = Set(cask.bundleIdentifiers.union(cask.footprintIDs).map { $0.lowercased() })
+        if !known.isEmpty { return known.contains(id) }
+        let labels = id.split(separator: ".")
+        guard labels.count >= 2 else { return false }
+        let vendor = labels[1]
+        let hosts = [cask.homepage, cask.downloadURL].compactMap { $0?.host()?.lowercased() }
+        return hosts.contains { $0.split(separator: ".").contains(vendor) }
+    }
+
     /// Homebrew installs upgrade through brew. Otherwise, apps that update themselves
     /// (Chrome, Edge, …) are opened so their own updater runs; the rest get the cask's
     /// direct download rather than a marketing homepage.
@@ -308,18 +348,21 @@ struct Cask: Sendable, Equatable {
     let version: String
     let appNames: [String]
     let bundleIdentifiers: Set<String>
+    /// Bundle IDs named by the cask's zap/uninstall paths (preferences, caches, saved state).
+    let footprintIDs: Set<String>
     let homepage: URL?
     let downloadURL: URL?
     let isDisabled: Bool
     /// The cask declares that the app updates itself.
     let autoUpdates: Bool
 
-    init(token: String, version: String, appNames: [String], bundleIdentifiers: Set<String> = [],
+    init(token: String, version: String, appNames: [String], bundleIdentifiers: Set<String> = [], footprintIDs: Set<String> = [],
          homepage: URL? = nil, downloadURL: URL? = nil, isDisabled: Bool = false, autoUpdates: Bool = false) {
         self.token = token
         self.version = version
         self.appNames = appNames
         self.bundleIdentifiers = bundleIdentifiers
+        self.footprintIDs = footprintIDs
         self.homepage = homepage
         self.downloadURL = downloadURL
         self.isDisabled = isDisabled
@@ -340,6 +383,7 @@ private struct CaskFields {
     var autoUpdates = false
     var appNames: [String] = []
     var bundleIDs: Set<String> = []
+    var footprintIDs: Set<String> = []
     var keys: Set<String> = []
 
     mutating func apply(_ overlay: CaskFields) {
@@ -353,6 +397,7 @@ private struct CaskFields {
         if overlay.keys.contains("artifacts") {
             appNames = overlay.appNames
             bundleIDs = overlay.bundleIDs
+            footprintIDs = overlay.footprintIDs
         }
     }
 
@@ -363,6 +408,7 @@ private struct CaskFields {
             version: version,
             appNames: appNames,
             bundleIdentifiers: bundleIDs,
+            footprintIDs: footprintIDs,
             homepage: homepage.flatMap(URL.init(string:)),
             downloadURL: downloadURL.flatMap(URL.init(string:)),
             isDisabled: disabled || deprecated,
