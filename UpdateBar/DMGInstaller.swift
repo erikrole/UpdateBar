@@ -30,6 +30,12 @@ enum DMGInstaller {
                   fm.isWritableFile(atPath: destination.deletingLastPathComponent().path)
             else { throw Failure(message: "\(name) is somewhere UpdateBar can't change. Move it to Applications first.") }
 
+            // An interrupted earlier update can leave a staging copy or backup beside the app.
+            let folder = destination.deletingLastPathComponent()
+            for item in (try? fm.contentsOfDirectory(atPath: folder.path)) ?? []
+            where item.hasPrefix(".\(destination.lastPathComponent).update-") || item == ".\(destination.lastPathComponent).updatebar-backup" {
+                try? fm.removeItem(at: folder.appending(path: item))
+            }
             // Own releases pass our Team ID; anything else must be signed by whoever signed the app now installed.
             guard let teamID = expectedTeamID ?? installedTeamID(of: destination) else {
                 throw Failure(message: "\(name) isn't signed by a developer team, so UpdateBar can't verify an update for it.")
@@ -40,7 +46,9 @@ enum DMGInstaller {
             let work = fm.temporaryDirectory.appending(path: "UpdateBar-\(UUID().uuidString)")
             try fm.createDirectory(at: work, withIntermediateDirectories: true)
             defer { try? fm.removeItem(at: work) }
-            let (temp, response) = try await URLSession.shared.download(from: url)
+            let (temp, response) = try await download(url) { fraction in
+                Task { @MainActor in progress("Downloading \(name)… \(Int(fraction * 100))%") }
+            }
             guard let http = response as? HTTPURLResponse, http.statusCode == 200 else {
                 throw Failure(message: "Download failed (HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)).")
             }
@@ -217,4 +225,22 @@ enum DMGInstaller {
             return output
         }.value
     }
+}
+
+/// Downloads with progress. `URLSession.download(from:)` reports none, which leaves a 100 MB download looking stuck.
+private func download(_ url: URL, progress: @escaping @Sendable (Double) -> Void) async throws -> (URL, URLResponse) {
+    let observer = DownloadObserver(progress: progress)
+    return try await URLSession.shared.download(from: url, delegate: observer)
+}
+
+private final class DownloadObserver: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    let progress: @Sendable (Double) -> Void
+    private var last = -1
+    init(progress: @escaping @Sendable (Double) -> Void) { self.progress = progress }
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
+        guard totalBytesExpectedToWrite > 0 else { return }
+        let percent = Int(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite) * 100)
+        if percent != last, percent % 5 == 0 { last = percent; progress(Double(percent) / 100) }
+    }
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didFinishDownloadingTo location: URL) {}
 }

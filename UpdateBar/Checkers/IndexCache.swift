@@ -189,7 +189,7 @@ actor DecodedIndex<Value: Sendable> {
         expirations[key] = Task(priority: .utility) {
             try? await Task.sleep(for: .seconds(remaining))
             guard !Task.isCancelled else { return }
-            await self.evict(key, generation: generation)
+            self.evict(key, generation: generation)
         }
     }
 
