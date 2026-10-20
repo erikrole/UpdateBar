@@ -155,6 +155,7 @@ final class UpdateStore {
     func start() {
         if notificationsEnabled { UpdateNotifier.requestPermission() }
         scheduleChecks()
+        PKGInstaller.sweepStaging()
         Task { await checkNow() }
     }
 

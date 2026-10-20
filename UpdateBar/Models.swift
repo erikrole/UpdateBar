@@ -66,6 +66,9 @@ enum UpdateAction: Hashable, Sendable {
     /// Download a Homebrew cask's DMG or zip for an app Homebrew doesn't own, verify it against the installed
     /// app's own Team ID, and replace the app in place.
     case archiveInstall(URL)
+    /// Download a signed installer package, verify it against the installed app's Team ID, and open it in
+    /// Apple's Installer, which asks for the password itself.
+    case pkgInstall(URL)
     /// Open a download or release page in the browser.
     case openURL(URL)
 }

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		04155D010051AA3A1FBEBAD6 /* PKGInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEBA8829BA9EE858A5B10E39 /* PKGInstaller.swift */; };
 		0CD780D83793AAC1A17AEF8E /* DMGInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B8AACD36FFE219F74234407 /* DMGInstaller.swift */; };
 		0FD505553CA2C6FA280644E6 /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 408036FC8E91C9B0B1EE2FBF /* UpdateChecker.swift */; };
 		34023FB975D1FBF5F02C4E24 /* AppStoreChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00B3EC4EAA9A01CE1CD994A9 /* AppStoreChecker.swift */; };
@@ -80,6 +81,7 @@
 		C42B5DD1E98B6862FADDF21A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C74D674E6BED3502B6384FEC /* UpdateBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateBarView.swift; sourceTree = "<group>"; };
 		DC283181845BE799B947F3CF /* VersionComparatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionComparatorTests.swift; sourceTree = "<group>"; };
+		DEBA8829BA9EE858A5B10E39 /* PKGInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PKGInstaller.swift; sourceTree = "<group>"; };
 		E2813803DB5200D8188CE526 /* AppUpdateActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdateActions.swift; sourceTree = "<group>"; };
 		FDE61661C3E0639E4013F054 /* GitHubChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitHubChecker.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -152,6 +154,7 @@
 				C42B5DD1E98B6862FADDF21A /* Info.plist */,
 				734BE46E1EBD1A2D47AB2781 /* LaunchAtLoginController.swift */,
 				422767A185DF56A59314595D /* Models.swift */,
+				DEBA8829BA9EE858A5B10E39 /* PKGInstaller.swift */,
 				17F08557CC0A48FFA69C5E67 /* SparkleInstaller.swift */,
 				065EAA53ACB8DB4F3B9F1286 /* ToolUpgradeActions.swift */,
 				A524B9E8B2059D0E778E4F18 /* UpdateBarApp.swift */,
@@ -277,6 +280,7 @@
 				E2A5852F2016B67F7F1EB3B3 /* IndexCache.swift in Sources */,
 				868E1AED293E6AB1424EFC2C /* LaunchAtLoginController.swift in Sources */,
 				AB920BADF055526840251AA1 /* Models.swift in Sources */,
+				04155D010051AA3A1FBEBAD6 /* PKGInstaller.swift in Sources */,
 				502EC85786F01CBC8C60DE03 /* SparkleChecker.swift in Sources */,
 				D7FB5B02346D5AA88FC3E556 /* SparkleInstaller.swift in Sources */,
 				A0CED048052A611DFB8FD5CA /* ToolUpgradeActions.swift in Sources */,

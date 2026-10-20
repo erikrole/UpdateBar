@@ -330,7 +330,7 @@ final class HomebrewTests: XCTestCase {
                          downloadURL: URL(string: "https://x.com/X.dmg"))
         XCTAssertEqual(HomebrewChecker.action(for: plain, brewInstalled: false), .archiveInstall(URL(string: "https://x.com/X.dmg")!))
         let pkg = Cask(token: "p", version: "2", appNames: ["P.app"], homepage: URL(string: "https://p.com"), downloadURL: URL(string: "https://p.com/P.pkg"))
-        XCTAssertEqual(HomebrewChecker.action(for: pkg, brewInstalled: false), .openURL(URL(string: "https://p.com/P.pkg")!))
+        XCTAssertEqual(HomebrewChecker.action(for: pkg, brewInstalled: false), .pkgInstall(URL(string: "https://p.com/P.pkg")!))
         let insecure = Cask(token: "i", version: "2", appNames: ["I.app"], homepage: URL(string: "https://i.com"), downloadURL: URL(string: "http://i.com/I.dmg"))
         XCTAssertEqual(HomebrewChecker.action(for: insecure, brewInstalled: false), .openURL(URL(string: "http://i.com/I.dmg")!))
         XCTAssertTrue(HomebrewChecker.isArchive(URL(string: "https://handbrake.fr/rotation.php?file=HandBrake-1.11.2.dmg&update=true")!))
@@ -481,5 +481,63 @@ final class ScannerTests: XCTestCase {
         XCTAssertEqual(own.action, .dmgInstall(URL(string: "https://github.com/erikrole/x-releases/releases/download/v2.0/X.dmg")!))
         let other = try XCTUnwrap(GitHubChecker.update(for: installed, release: release, repository: "someone/x"))
         XCTAssertEqual(other.action, .openURL(URL(string: "https://github.com/erikrole/x-releases/releases/v2.0")!))
+    }
+
+    func testPackageOnlyCaskIsNamedByItsUninstallPaths() throws {
+        let json = """
+        [{"token":"teams","version":"2.0","url":"https://x.com/Teams.pkg",
+          "artifacts":[{"uninstall":[{"quit":"com.microsoft.teams2","delete":["/Applications/Microsoft Teams.app","/Library/Logs/Teams"]}]},
+                       {"pkg":["MicrosoftTeams.pkg"]}]},
+         {"token":"pkg-no-app","version":"1.0","artifacts":[{"pkg":["x.pkg"]}]}]
+        """
+        let casks = try HomebrewChecker.decode(Data(json.utf8))
+        XCTAssertEqual(casks.count, 1)
+        XCTAssertTrue(casks[0].isPackage)
+        XCTAssertEqual(casks[0].appNames, ["Microsoft Teams.app"])
+        XCTAssertEqual(HomebrewChecker.action(for: casks[0], brewInstalled: false), .pkgInstall(URL(string: "https://x.com/Teams.pkg")!))
+    }
+
+    func testPackageSignatureTeamIDParsing() {
+        let good = """
+        Package "X.pkg":
+           Status: signed by a developer certificate issued by Apple for distribution
+           Certificate Chain:
+            1. Developer ID Installer: Example Inc. (ABCDE12345)
+               Expires: 2030-01-01 00:00:00 +0000
+            2. Developer ID Certification Authority
+        """
+        XCTAssertEqual(PKGInstaller.signerTeamID(in: good), "ABCDE12345")
+        XCTAssertNil(PKGInstaller.signerTeamID(in: "Package \"X.pkg\":\n   Status: no signature"))
+        // Signed, but not by Apple's program: no Team ID is trusted.
+        XCTAssertNil(PKGInstaller.signerTeamID(in: "   Status: signed by a certificate that is not trusted\n    1. Developer ID Installer: Evil (ABCDE12345)"))
+        // A Developer ID Application cert is not an installer cert.
+        XCTAssertNil(PKGInstaller.signerTeamID(in: "   Status: signed by a developer certificate issued by Apple for distribution\n    1. Developer ID Application: X (ABCDE12345)"))
+    }
+
+    func testStagingIsSweptAndPackagesLiveInTheCacheFolder() throws {
+        try FileManager.default.createDirectory(at: PKGInstaller.stagingDirectory, withIntermediateDirectories: true)
+        let leftover = PKGInstaller.stagingDirectory.appending(path: "old.pkg")
+        try Data("x".utf8).write(to: leftover)
+        PKGInstaller.sweepStaging()
+        XCTAssertFalse(FileManager.default.fileExists(atPath: leftover.path))
+        XCTAssertTrue(PKGInstaller.stagingDirectory.path.contains("/Library/Caches/UpdateBar/pkg"))
+    }
+
+    /// Real `pkgutil --check-signature` output for Tailscale's package (Team ID matches /Applications/Tailscale.app).
+    func testPackageSignatureParsesRealPkgutilOutput() {
+        let output = """
+        Package "t.pkg":
+           Status: signed by a developer certificate issued by Apple for distribution
+           Notarization: trusted by the Apple notary service
+           Signed with a trusted timestamp on: 2026-10-07 21:44:20 +0000
+           Certificate Chain:
+            1. Developer ID Installer: Tailscale Inc. (W5364U7YZB)
+               Expires: 2028-12-12 15:02:21 +0000
+               SHA256 Fingerprint:
+                   1E 77 DE 6F E4 7D 42 69 84 C5 AA 18 0D 58 1F 32 46 19 7F 73 C0 C7
+            2. Developer ID Certification Authority
+            3. Apple Root CA
+        """
+        XCTAssertEqual(PKGInstaller.signerTeamID(in: output), "W5364U7YZB")
     }
 }

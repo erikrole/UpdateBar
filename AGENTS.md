@@ -25,7 +25,9 @@ public releases: Fetch, Offload).
 
 Own-app GitHub releases with a `.dmg` asset install in place (`DMGInstaller`: download, mount, codesign/Team ID T26T3G8C7Q/spctl check,
 quit, swap with backup, relaunch). Casks for apps Homebrew doesn't own (e.g. Claude) with a .dmg/.zip download install in place the same way, verified against the
-installed app's own Team ID (`archiveInstall`); .pkg casks and browsers with an update page keep "Open"/a link.
+installed app's own Team ID (`archiveInstall`); .pkg casks (`pkgInstall`) download over https into `~/Library/Caches/UpdateBar/pkg`, verify `pkgutil --check-signature` (Developer ID
+Installer, same Team ID) and Gatekeeper, then open the package in Apple's Installer, which asks for the password itself (UpdateBar never
+elevates); staged packages are swept at launch. Browsers with an update page keep "Open"/a link.
 
 Tests must use isolated defaults and fixture network responses. Never invoke
 `--install`, Homebrew upgrades, or real Sparkle installs merely to test the app.

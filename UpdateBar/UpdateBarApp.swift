@@ -171,6 +171,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case .installed: outcome = "INSTALLED \(row.app.name) \(row.update.version)"
             case let .failure(message): outcome = "FAILED \(message)"
             }
+        case let .pkgInstall(url):
+            switch await PKGInstaller.install(row.app, from: url, progress: { print("  \($0)") }) {
+            case .opened: outcome = "INSTALLED \(row.app.name) \(row.update.version) (opened in Installer)"
+            case let .failure(message): outcome = "FAILED \(message)"
+            }
         default:
             outcome = "\(row.app.name) doesn't install in place"
         }

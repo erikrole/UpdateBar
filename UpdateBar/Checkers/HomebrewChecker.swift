@@ -117,22 +117,26 @@ struct HomebrewChecker: UpdateChecker {
         case "artifacts":
             fields.keys.insert(key)
             let artifacts = try artifacts(from: cursor)
-            fields.appNames = artifacts.names
+            // A package-only cask has no `app` artifact; the app it installs is named by its uninstall paths.
+            fields.appNames = artifacts.names.isEmpty && artifacts.isPackage ? artifacts.deletedApps : artifacts.names
             fields.bundleIDs = artifacts.ids
             fields.footprintIDs = artifacts.footprint
+            fields.isPackage = artifacts.isPackage
         default:
             try cursor.skipValue()
         }
     }
 
-    private static func artifacts(from cursor: JSONCursor) throws -> (names: [String], ids: Set<String>, footprint: Set<String>) {
+    private static func artifacts(from cursor: JSONCursor) throws -> (names: [String], ids: Set<String>, footprint: Set<String>, isPackage: Bool, deletedApps: [String]) {
         guard cursor.peekByte() == UInt8(ascii: "[") else {
             try cursor.skipValue()
-            return ([], [], [])
+            return ([], [], [], false, [])
         }
         var names: [String] = []
         var ids = Set<String>()
         var footprint = Set<String>()
+        var isPackage = false
+        var deletedApps: [String] = []
         try cursor.readArray { cursor in
             guard cursor.peekByte() == UInt8(ascii: "{") else {
                 try cursor.skipValue()
@@ -143,13 +147,16 @@ struct HomebrewChecker: UpdateChecker {
                 case "app":
                     try appNames(from: cursor, into: &names)
                 case "uninstall", "zap":
-                    try bundleIDs(from: cursor, into: &ids, footprint: &footprint)
+                    try bundleIDs(from: cursor, into: &ids, footprint: &footprint, deletedApps: &deletedApps)
+                case "pkg":
+                    isPackage = true
+                    try cursor.skipValue()
                 default:
                     try cursor.skipValue()
                 }
             }
         }
-        return (names, ids, footprint)
+        return (names, ids, footprint, isPackage, deletedApps)
     }
 
     private static func appNames(from cursor: JSONCursor, into names: inout [String]) throws {
@@ -170,7 +177,7 @@ struct HomebrewChecker: UpdateChecker {
 
     /// `quit` and `signal` contribute a bundle ID only when they are a string or
     /// an array of strings. A signal dictionary names a process signal, not an ID.
-    private static func bundleIDs(from cursor: JSONCursor, into ids: inout Set<String>, footprint: inout Set<String>) throws {
+    private static func bundleIDs(from cursor: JSONCursor, into ids: inout Set<String>, footprint: inout Set<String>, deletedApps: inout [String]) throws {
         guard cursor.peekByte() == UInt8(ascii: "[") else {
             try cursor.skipValue()
             return
@@ -188,7 +195,13 @@ struct HomebrewChecker: UpdateChecker {
                     // Paths like "~/Library/Preferences/com.vendor.App.plist" name the app's real bundle ID.
                     var paths = Set<String>()
                     try idValues(from: cursor, into: &paths)
-                    for path in paths { if let id = footprintID(in: path) { footprint.insert(id) } }
+                    for path in paths {
+                        if let id = footprintID(in: path) { footprint.insert(id) }
+                        // "/Applications/Microsoft Teams.app" names the app a package installs.
+                        if key == "delete", path.hasPrefix("/Applications/"), path.hasSuffix(".app"), path.split(separator: "/").count == 2 {
+                            deletedApps.append(String(path.split(separator: "/").last!))
+                        }
+                    }
                 default:
                     try cursor.skipValue()
                 }
@@ -330,7 +343,10 @@ struct HomebrewChecker: UpdateChecker {
     static func action(for cask: Cask, brewInstalled: Bool, bundleIdentifier: String? = nil) -> UpdateAction {
         if brewInstalled { return .brewUpgrade(token: cask.token) }
         if cask.autoUpdates, let bundleIdentifier, AppUpdateActions.updatePage(for: bundleIdentifier) != nil { return .launchApp }
-        if let download = cask.downloadURL, download.scheme == "https", isArchive(download) { return .archiveInstall(download) }
+        if let download = cask.downloadURL, download.scheme == "https" {
+            if isArchive(download) { return .archiveInstall(download) }
+            if cask.isPackage || download.pathExtension.lowercased() == "pkg" { return .pkgInstall(download) }
+        }
         if cask.autoUpdates { return .launchApp }
         if let download = cask.downloadURL { return .openURL(download) }
         return cask.homepage.map(UpdateAction.openURL) ?? .launchApp
@@ -366,9 +382,11 @@ struct Cask: Sendable, Equatable {
     let isDisabled: Bool
     /// The cask declares that the app updates itself.
     let autoUpdates: Bool
+    /// The cask installs with a .pkg rather than by copying an app.
+    let isPackage: Bool
 
     init(token: String, version: String, appNames: [String], bundleIdentifiers: Set<String> = [], footprintIDs: Set<String> = [],
-         homepage: URL? = nil, downloadURL: URL? = nil, isDisabled: Bool = false, autoUpdates: Bool = false) {
+         homepage: URL? = nil, downloadURL: URL? = nil, isDisabled: Bool = false, autoUpdates: Bool = false, isPackage: Bool = false) {
         self.token = token
         self.version = version
         self.appNames = appNames
@@ -378,6 +396,7 @@ struct Cask: Sendable, Equatable {
         self.downloadURL = downloadURL
         self.isDisabled = isDisabled
         self.autoUpdates = autoUpdates
+        self.isPackage = isPackage
     }
 
 }
@@ -392,6 +411,7 @@ private struct CaskFields {
     var disabled = false
     var deprecated = false
     var autoUpdates = false
+    var isPackage = false
     var appNames: [String] = []
     var bundleIDs: Set<String> = []
     var footprintIDs: Set<String> = []
@@ -407,6 +427,7 @@ private struct CaskFields {
         if overlay.keys.contains("auto_updates") { autoUpdates = overlay.autoUpdates }
         if overlay.keys.contains("artifacts") {
             appNames = overlay.appNames
+            isPackage = overlay.isPackage
             bundleIDs = overlay.bundleIDs
             footprintIDs = overlay.footprintIDs
         }
@@ -423,7 +444,8 @@ private struct CaskFields {
             homepage: homepage.flatMap(URL.init(string:)),
             downloadURL: downloadURL.flatMap(URL.init(string:)),
             isDisabled: disabled || deprecated,
-            autoUpdates: autoUpdates
+            autoUpdates: autoUpdates,
+            isPackage: isPackage
         )
     }
 }
