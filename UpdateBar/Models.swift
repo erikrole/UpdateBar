@@ -63,6 +63,9 @@ enum UpdateAction: Hashable, Sendable {
     case launchApp
     /// Download a signed DMG, verify it, and replace the app in place (own apps only).
     case dmgInstall(URL)
+    /// Download a Homebrew cask's DMG or zip for an app Homebrew doesn't own, verify it against the installed
+    /// app's own Team ID, and replace the app in place.
+    case archiveInstall(URL)
     /// Open a download or release page in the browser.
     case openURL(URL)
 }

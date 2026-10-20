@@ -319,11 +319,22 @@ final class HomebrewTests: XCTestCase {
     func testFallbackActions() {
         let selfUpdating = Cask(token: "google-chrome", version: "2", appNames: ["Google Chrome.app"],
                                 downloadURL: URL(string: "https://dl.google.com/x.dmg"), autoUpdates: true)
-        XCTAssertEqual(HomebrewChecker.action(for: selfUpdating, brewInstalled: false), .launchApp)
+        // Browsers with an update page keep it; other self-updating apps get the one-click install.
+        XCTAssertEqual(HomebrewChecker.action(for: selfUpdating, brewInstalled: false, bundleIdentifier: "com.google.Chrome"), .launchApp)
+        XCTAssertEqual(HomebrewChecker.action(for: selfUpdating, brewInstalled: false, bundleIdentifier: "com.x.App"),
+                       .archiveInstall(URL(string: "https://dl.google.com/x.dmg")!))
+        let noDownload = Cask(token: "n", version: "2", appNames: ["N.app"], autoUpdates: true)
+        XCTAssertEqual(HomebrewChecker.action(for: noDownload, brewInstalled: false, bundleIdentifier: "com.x.N"), .launchApp)
         XCTAssertEqual(HomebrewChecker.action(for: selfUpdating, brewInstalled: true), .brewUpgrade(token: "google-chrome"))
         let plain = Cask(token: "x", version: "2", appNames: ["X.app"], homepage: URL(string: "https://x.com"),
                          downloadURL: URL(string: "https://x.com/X.dmg"))
-        XCTAssertEqual(HomebrewChecker.action(for: plain, brewInstalled: false), .openURL(URL(string: "https://x.com/X.dmg")!))
+        XCTAssertEqual(HomebrewChecker.action(for: plain, brewInstalled: false), .archiveInstall(URL(string: "https://x.com/X.dmg")!))
+        let pkg = Cask(token: "p", version: "2", appNames: ["P.app"], homepage: URL(string: "https://p.com"), downloadURL: URL(string: "https://p.com/P.pkg"))
+        XCTAssertEqual(HomebrewChecker.action(for: pkg, brewInstalled: false), .openURL(URL(string: "https://p.com/P.pkg")!))
+        let insecure = Cask(token: "i", version: "2", appNames: ["I.app"], homepage: URL(string: "https://i.com"), downloadURL: URL(string: "http://i.com/I.dmg"))
+        XCTAssertEqual(HomebrewChecker.action(for: insecure, brewInstalled: false), .openURL(URL(string: "http://i.com/I.dmg")!))
+        XCTAssertTrue(HomebrewChecker.isArchive(URL(string: "https://handbrake.fr/rotation.php?file=HandBrake-1.11.2.dmg&update=true")!))
+        XCTAssertFalse(HomebrewChecker.isArchive(URL(string: "https://x.com/download")!))
         XCTAssertEqual(UpdateStore.updatePage(for: "com.google.Chrome")?.absoluteString, "chrome://settings/help")
     }
 

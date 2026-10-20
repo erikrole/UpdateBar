@@ -165,8 +165,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case .success: outcome = "INSTALLED \(row.app.name) \(row.update.version)"
             case let .failure(message): outcome = "FAILED \(message)"
             }
-        case let .dmgInstall(url):
-            switch await DMGInstaller.install(row.app, from: url, progress: { print("  \($0)") }) {
+        case let .dmgInstall(url), let .archiveInstall(url):
+            let team: String? = if case .dmgInstall = row.update.action { DMGInstaller.ownTeamID } else { nil }
+            switch await DMGInstaller.install(row.app, from: url, expectedTeamID: team, progress: { print("  \($0)") }) {
             case .installed: outcome = "INSTALLED \(row.app.name) \(row.update.version)"
             case let .failure(message): outcome = "FAILED \(message)"
             }

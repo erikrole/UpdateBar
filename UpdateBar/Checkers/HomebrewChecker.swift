@@ -302,7 +302,7 @@ struct HomebrewChecker: UpdateChecker {
                 releaseNotes: nil,
                 releaseNotesURL: cask.homepage,
                 downloadURL: cask.downloadURL,
-                action: Self.action(for: cask, brewInstalled: brewInstalled)
+                action: Self.action(for: cask, brewInstalled: brewInstalled, bundleIdentifier: app.bundleIdentifier)
             ))
         }
         return result
@@ -325,11 +325,22 @@ struct HomebrewChecker: UpdateChecker {
     /// Homebrew installs upgrade through brew. Otherwise, apps that update themselves
     /// (Chrome, Edge, …) are opened so their own updater runs; the rest get the cask's
     /// direct download rather than a marketing homepage.
-    static func action(for cask: Cask, brewInstalled: Bool) -> UpdateAction {
+    /// Casks whose download is a DMG or zip, for an app Homebrew doesn't own, install in place: UpdateBar downloads
+    /// the file and verifies it against the installed app's own signing Team ID. Browsers with an update page open it.
+    static func action(for cask: Cask, brewInstalled: Bool, bundleIdentifier: String? = nil) -> UpdateAction {
         if brewInstalled { return .brewUpgrade(token: cask.token) }
+        if cask.autoUpdates, let bundleIdentifier, AppUpdateActions.updatePage(for: bundleIdentifier) != nil { return .launchApp }
+        if let download = cask.downloadURL, download.scheme == "https", isArchive(download) { return .archiveInstall(download) }
         if cask.autoUpdates { return .launchApp }
         if let download = cask.downloadURL { return .openURL(download) }
         return cask.homepage.map(UpdateAction.openURL) ?? .launchApp
+    }
+
+    /// A download that unpacks to an app: .dmg or .zip (a few vendors serve them behind a redirector, so a
+    /// `file=` query value counts too). Packages and unknown types stay a link.
+    static func isArchive(_ url: URL) -> Bool {
+        let candidates = [url.lastPathComponent] + (URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.compactMap(\.value) ?? [])
+        return candidates.contains { ["dmg", "zip"].contains(($0 as NSString).pathExtension.lowercased()) }
     }
 
     /// Guards the fallback path against casks that number releases differently from

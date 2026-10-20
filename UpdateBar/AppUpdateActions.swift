@@ -9,7 +9,7 @@ enum AppUpdateActions {
         guard !row.installsInPlace || store.canInstallUpdates else { return }
         store.actionMessages[id] = nil
         switch row.update.action {
-        case .brewUpgrade, .sparkleInstall, .dmgInstall:
+        case .brewUpgrade, .sparkleInstall, .dmgInstall, .archiveInstall:
             install([row], on: store)
         case .openAppStore:
             NSWorkspace.shared.open(URL(string: "macappstore://apps.apple.com/updates")!)
@@ -118,6 +118,10 @@ enum AppUpdateActions {
                 return message
             }
         case let .dmgInstall(url):
+            if case let .failure(message) = await DMGInstaller.install(row.app, from: url, expectedTeamID: DMGInstaller.ownTeamID, progress: progress) {
+                return message
+            }
+        case let .archiveInstall(url):
             if case let .failure(message) = await DMGInstaller.install(row.app, from: url, progress: progress) {
                 return message
             }
@@ -131,7 +135,7 @@ extension AppUpdate {
     /// Whether UpdateBar can install this update itself, without opening anything.
     var installsInPlace: Bool {
         switch update.action {
-        case .brewUpgrade, .sparkleInstall, .dmgInstall: true
+        case .brewUpgrade, .sparkleInstall, .dmgInstall, .archiveInstall: true
         case .openAppStore, .launchApp, .openURL: false
         }
     }

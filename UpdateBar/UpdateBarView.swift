@@ -309,7 +309,7 @@ private struct UpdateRow: View {
 
     private var actionTitle: String {
         switch row.update.action {
-        case .brewUpgrade, .sparkleInstall, .dmgInstall: "Update"
+        case .brewUpgrade, .sparkleInstall, .dmgInstall, .archiveInstall: "Update"
         case .openAppStore: "App Store"
         case .launchApp: UpdateStore.updatePage(for: row.app.bundleIdentifier) == nil ? "Open" : "Update"
         case .openURL: "Download"

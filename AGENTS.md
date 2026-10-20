@@ -24,7 +24,8 @@ Own `com.erole.*` apps are checked at `erikrole/<Name>`, then `erikrole/<name>-r
 public releases: Fetch, Offload).
 
 Own-app GitHub releases with a `.dmg` asset install in place (`DMGInstaller`: download, mount, codesign/Team ID T26T3G8C7Q/spctl check,
-quit, swap with backup, relaunch). Non-Homebrew self-updating casks (e.g. Claude) stay "Open".
+quit, swap with backup, relaunch). Casks for apps Homebrew doesn't own (e.g. Claude) with a .dmg/.zip download install in place the same way, verified against the
+installed app's own Team ID (`archiveInstall`); .pkg casks and browsers with an update page keep "Open"/a link.
 
 Tests must use isolated defaults and fixture network responses. Never invoke
 `--install`, Homebrew upgrades, or real Sparkle installs merely to test the app.
