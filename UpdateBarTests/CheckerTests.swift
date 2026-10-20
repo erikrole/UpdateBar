@@ -357,6 +357,8 @@ final class GitHubTests: XCTestCase {
         XCTAssertEqual(GitHubChecker.repository(for: app("com.erole.PowerBar", short: "0.1.0"), overrides: [:]), "erikrole/PowerBar")
         XCTAssertNil(GitHubChecker.repository(for: app("com.other.App", short: "1"), overrides: [:]))
         XCTAssertEqual(GitHubChecker.repository(for: app("com.other.App", short: "1"), overrides: ["com.other.App": "me/app"]), "me/app")
+        XCTAssertEqual(GitHubChecker.repositories(for: app("com.erole.Fetch", short: "1.4.1"), overrides: [:]), ["erikrole/Fetch", "erikrole/fetch-releases"])
+        XCTAssertEqual(GitHubChecker.repositories(for: app("com.erole.Fetch", short: "1"), overrides: ["com.erole.Fetch": "me/fetch"]), ["me/fetch"])
     }
 
     func testReleaseComparison() throws {
