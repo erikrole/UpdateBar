@@ -51,3 +51,5 @@ reservation through relaunch and restore running state on upgrade failure.
 `BrewAppLiveTests` requires explicit user authorization and `TEST_RUNNER_UPDATEBAR_LIVE_BREW=1`,
 plus `TEST_RUNNER_UPDATEBAR_LIVE_BUNDLE_ID` and `TEST_RUNNER_UPDATEBAR_LIVE_CASK`.
 Use an empty `TEST_RUNNER_HOMEBREW_CACHE` to prove a fresh download.
+
+AppUpdater integration: `SelfUpdate.swift` owns the pinned package instance. Keep automatic checks Release-only and exclude tests/CLI helpers. Permit updater termination only after `isAwaitingRelaunch`, then retain host save/busy/restore guards. Never add a forced-exit fallback for these guards.

@@ -103,3 +103,5 @@ The release report scanned 103 apps, with GitHub checks returning HTTP 403 becau
 the anonymous API quota was exhausted (remaining=0). This external check limitation
 is separate from successful signing, installation, and GitHub release publication.
 The previous installed app and release evidence are retained outside the repository.
+
+- October 23: AppUpdater ZIP integration is prepared against package `5b5a941`, retaining macOS 27 and existing save/busy/quit safeguards. A new host release is still required; see README App updates.

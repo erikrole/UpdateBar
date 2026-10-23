@@ -512,6 +512,10 @@ private struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
+            Section("UpdateBar") {
+                Button("Check for UpdateBar Updates…") { SelfUpdate.checkNow() }
+            }
+
             Section("Ignored apps") {
                 if store.ignoredApps.isEmpty {
                     Text("None. Right-click an update to ignore its app.")

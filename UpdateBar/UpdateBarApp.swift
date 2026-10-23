@@ -36,6 +36,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         configureStatusItem()
         observeStore()
         store.start()
+        SelfUpdate.busyReason = { [weak self] in
+            self?.store.runningActions.isEmpty == false ? "Wait for app and tool updates to finish before updating UpdateBar." : nil
+        }
+        SelfUpdate.checkOnLaunch()
     }
 
     private func configureStatusItem() {
@@ -102,6 +106,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard !SelfUpdate.isPreparing else { return .terminateCancel }
         guard store.runningActions.isEmpty else {
             store.banner = UpdateStore.Banner(text: "An update is still running. Wait for it to finish before quitting.", isWarning: true)
             if !popover.isShown { togglePopover(nil) }
