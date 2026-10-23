@@ -48,7 +48,7 @@ frameworks. Feeds that only work over plain HTTP are reported, not trusted.
 
 ## Build and run
 
-Requirements: macOS 14 or later, Xcode, and XcodeGen.
+Requirements: macOS 27 or later, Xcode 27 or later, and XcodeGen.
 
 ```sh
 xcodegen generate

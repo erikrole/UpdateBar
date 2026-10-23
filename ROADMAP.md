@@ -14,7 +14,7 @@ Next verification work:
 
 - Exercise real Sparkle and Homebrew installs with specifically chosen updates,
   including running-app relaunch and failures requiring a Terminal password.
-- Verify the menu visually on macOS 14 and newer, plus native/Rosetta and Intel
+- Verify the menu visually on macOS 27 and newer, plus native/Rosetta and Intel
   Homebrew setups. Secondary Homebrew prefixes are deliberately excluded.
 - Profile a larger app library with Instruments; current benchmark isolates
   index loading and does not measure total network-check latency.

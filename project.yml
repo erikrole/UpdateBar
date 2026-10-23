@@ -2,11 +2,11 @@ name: UpdateBar
 options:
   bundleIdPrefix: com.erole
   deploymentTarget:
-    macOS: "14.0"
+    macOS: "27.0"
 settings:
   base:
     SWIFT_VERSION: 6.0
-    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    MACOSX_DEPLOYMENT_TARGET: "27.0"
     DEVELOPMENT_TEAM: ""
 packages:
   Sparkle:

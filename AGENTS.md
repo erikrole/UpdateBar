@@ -1,6 +1,6 @@
 # UpdateBar development
 
-Native Swift 6 macOS 14+ menu bar app. `project.yml` is the XcodeGen source of
+Native Swift 6 macOS 27+ menu bar app. `project.yml` is the XcodeGen source of
 truth; regenerate the checked-in project after adding/removing Swift files.
 Sparkle is pinned to 2.10.0. No repository-specific visual design system exists;
 preserve the current compact AppKit popover and SwiftUI components.
