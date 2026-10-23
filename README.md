@@ -31,6 +31,11 @@ is used.
   and the App Store's Updates page for store apps. "Update all" runs every
   in-place update one after another. Chrome, Edge, Brave, and Vivaldi open their
   own update page; other self-updating apps are launched.
+- Signed package updates show “Install…” and open Apple’s Installer after verification.
+  Finish there, then check again. These interactive packages are excluded from Update all.
+- Release notes and options have an explicit keyboard-accessible button. Command-R
+  checks again, and failure details can be selected and copied. Normal Quit waits
+  until an active update finishes.
 
 A failed update stays on that row and does not cancel the rest of Update all.
 A Homebrew run that stops midway keeps what it already upgraded and says how
@@ -60,8 +65,12 @@ notifications or changes to notification history:
 
 ```sh
 UpdateBar.app/Contents/MacOS/UpdateBar --report
-UpdateBar.app/Contents/MacOS/UpdateBar --install <bundle ID>   # Sparkle or Homebrew only, then exits; status 1 otherwise
+UpdateBar.app/Contents/MacOS/UpdateBar --install <bundle ID>   # supported installer; status 1 on failure
 ```
+
+For packages, the CLI reports `OPENED` rather than `INSTALLED`; exit status 0
+means the handoff to Installer succeeded. Recent packages survive app relaunches.
+Startup cleanup removes packages older than seven days only when Installer is closed.
 
 Homebrew's cask (~20 MB) and formula (~30 MB) indexes are cached in
 `~/Library/Application Support/UpdateBar/` and revalidated with their ETag at

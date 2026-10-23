@@ -101,6 +101,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard store.runningActions.isEmpty else {
+            store.banner = UpdateStore.Banner(text: "An update is still running. Wait for it to finish before quitting.", isWarning: true)
+            if !popover.isShown { togglePopover(nil) }
+            return .terminateCancel
+        }
+        return .terminateNow
+    }
+
     func applicationWillTerminate(_ notification: Notification) {
         if let outsideClickMonitor {
             NSEvent.removeMonitor(outsideClickMonitor)
@@ -146,7 +155,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     /// `UpdateBar --install <bundle ID>` checks, installs that app's pending update the
-    /// way the Update button would (Sparkle or Homebrew only), prints the outcome and exits.
+    /// way the Update button would (using its supported installer), prints the outcome and exits.
     private func installAndExit(_ bundleIdentifier: String) async {
         await store.checkNow(notify: false)
         guard let row = store.rows.first(where: { $0.app.bundleIdentifier == bundleIdentifier }) else {
@@ -173,14 +182,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         case let .pkgInstall(url):
             switch await PKGInstaller.install(row.app, from: url, progress: { print("  \($0)") }) {
-            case .opened: outcome = "INSTALLED \(row.app.name) \(row.update.version) (opened in Installer)"
+            case .opened: outcome = "OPENED \(row.app.name) in Installer; finish there, then check again"
             case let .failure(message): outcome = "FAILED \(message)"
             }
         default:
             outcome = "\(row.app.name) doesn't install in place"
         }
         print(outcome)
-        exit(outcome.hasPrefix("INSTALLED") ? 0 : 1)
+        exit(outcome.hasPrefix("INSTALLED") || outcome.hasPrefix("OPENED") ? 0 : 1)
     }
 
     @objc private func togglePopover(_ sender: Any?) {

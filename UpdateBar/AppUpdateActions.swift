@@ -6,7 +6,7 @@ import Foundation
 enum AppUpdateActions {
     static func perform(_ row: AppUpdate, store: UpdateStore) {
         let id = row.id
-        guard !row.installsInPlace || store.canInstallUpdates else { return }
+        guard !row.requiresInstallerReservation || (store.canInstallUpdates && !store.isChecking) else { return }
         store.actionMessages[id] = nil
         switch row.update.action {
         case .brewUpgrade, .sparkleInstall, .dmgInstall, .archiveInstall, .pkgInstall:
@@ -57,7 +57,7 @@ enum AppUpdateActions {
     /// Runs every update that installs in place (Homebrew, Sparkle and signed DMGs), one at a time
     /// so brew doesn't lock against itself and installers don't compete.
     static func install(_ targets: [AppUpdate], on store: UpdateStore) {
-        guard store.canInstallUpdates, !targets.isEmpty else { return }
+        guard store.canInstallUpdates, !store.isChecking, !targets.isEmpty else { return }
         // Reserve the entire batch before yielding: buttons and queued tasks cannot
         // start a second installer or a competing Homebrew formula upgrade.
         let ids = targets.map(\.id)
@@ -92,7 +92,13 @@ enum AppUpdateActions {
                 }
                 // Keep the batch reserved until every installer has finished.
             }
-            if !failed.isEmpty {
+            if failed.isEmpty {
+                let packages = targets.filter { !$0.installsInPlace }.count
+                let text = packages > 0
+                    ? "Opened in Installer. Finish the installation there, then check again."
+                    : "Updated \(targets.count) app\(targets.count == 1 ? "" : "s")"
+                store.banner = UpdateStore.Banner(text: text, isWarning: false)
+            } else {
                 let updated = targets.count - failed.count
                 let names = failed.joined(separator: ", ")
                 let text = updated == 0
@@ -140,11 +146,17 @@ enum AppUpdateActions {
 }
 
 extension AppUpdate {
-    /// Whether UpdateBar can install this update itself, without opening anything.
+    /// Package preparation also reserves the installer, but requires a manual finish.
+    var requiresInstallerReservation: Bool {
+        if case .pkgInstall = update.action { return true }
+        return installsInPlace
+    }
+
+    /// Whether UpdateBar can finish this update without a separate installer window.
     var installsInPlace: Bool {
         switch update.action {
-        case .brewUpgrade, .sparkleInstall, .dmgInstall, .archiveInstall, .pkgInstall: true
-        case .openAppStore, .launchApp, .openURL: false
+        case .brewUpgrade, .sparkleInstall, .dmgInstall, .archiveInstall: true
+        case .openAppStore, .launchApp, .openURL, .pkgInstall: false
         }
     }
 }

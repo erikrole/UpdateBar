@@ -119,6 +119,8 @@ final class UpdateStore {
     var pendingCount: Int { rows.count + newReleaseTools.count }
 
     var statusSummary: String {
+        if let toolRun { return toolRun.summary }
+        if !runningActions.isEmpty { return "Updating apps…" }
         if isChecking && lastChecked == nil { return "Checking for updates" }
         if pendingCount > 0 { return "\(pendingCount) update\(pendingCount == 1 ? "" : "s") available" }
         if !failures.isEmpty { return "Some updates couldn’t be checked" }

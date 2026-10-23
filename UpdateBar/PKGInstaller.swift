@@ -20,9 +20,24 @@ enum PKGInstaller {
             .appending(path: "UpdateBar").appending(path: "pkg")
     }
 
-    /// Removes packages left from earlier updates. Installer has read its package by the time UpdateBar relaunches.
+    /// Keep recent packages across relaunches, and never sweep while Installer is open.
+    @MainActor
     static func sweepStaging() {
-        try? FileManager.default.removeItem(at: stagingDirectory)
+        guard NSRunningApplication.runningApplications(withBundleIdentifier: "com.apple.installer").isEmpty else { return }
+        sweepStaging(in: stagingDirectory, now: Date())
+    }
+
+    static func sweepStaging(in directory: URL, now: Date) {
+        let fm = FileManager.default
+        let keys: Set<URLResourceKey> = [.isRegularFileKey, .isSymbolicLinkKey, .contentModificationDateKey]
+        guard let files = try? fm.contentsOfDirectory(at: directory, includingPropertiesForKeys: Array(keys)) else { return }
+        for file in files where file.pathExtension == "pkg" {
+            guard let values = try? file.resourceValues(forKeys: keys),
+                  values.isRegularFile == true, values.isSymbolicLink != true,
+                  let modified = values.contentModificationDate,
+                  now.timeIntervalSince(modified) > 7 * 24 * 60 * 60 else { continue }
+            try? fm.removeItem(at: file)
+        }
     }
 
     /// The Team ID in the "Developer ID Installer: Name (TEAMID)" line of `pkgutil --check-signature`, when the
@@ -58,7 +73,7 @@ enum PKGInstaller {
                 throw Failure(message: "Download failed (HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)).")
             }
             try fm.createDirectory(at: stagingDirectory, withIntermediateDirectories: true)
-            let pkg = stagingDirectory.appending(path: "\(name)-\(UUID().uuidString.prefix(8)).pkg")
+            let pkg = stagingDirectory.appending(path: "\(UUID().uuidString).pkg")
             try fm.moveItem(at: temp, to: pkg)
             staged = pkg
 

@@ -514,12 +514,7 @@ final class ScannerTests: XCTestCase {
         XCTAssertNil(PKGInstaller.signerTeamID(in: "   Status: signed by a developer certificate issued by Apple for distribution\n    1. Developer ID Application: X (ABCDE12345)"))
     }
 
-    func testStagingIsSweptAndPackagesLiveInTheCacheFolder() throws {
-        try FileManager.default.createDirectory(at: PKGInstaller.stagingDirectory, withIntermediateDirectories: true)
-        let leftover = PKGInstaller.stagingDirectory.appending(path: "old.pkg")
-        try Data("x".utf8).write(to: leftover)
-        PKGInstaller.sweepStaging()
-        XCTAssertFalse(FileManager.default.fileExists(atPath: leftover.path))
+    func testPackagesLiveInTheCacheFolder() {
         XCTAssertTrue(PKGInstaller.stagingDirectory.path.contains("/Library/Caches/UpdateBar/pkg"))
     }
 

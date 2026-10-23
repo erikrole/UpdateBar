@@ -1,6 +1,11 @@
 # UpdateBar roadmap
 
-Current focus: reliability and repeat-check performance. The 2026-10-12 audit
+Current focus: installer lifecycle and clear completion states. The 2026-10-23
+pass separates package handoff from completed updates, excludes interactive packages
+from Update all, preserves recent staged packages, guards normal Quit during updates,
+and adds accessible release-note controls and refresh shortcut.
+
+Earlier reliability and repeat-check performance work: The 2026-10-12 audit
 implemented shared refresh work, exclusive installers, decoded index caching,
 platform-aware Homebrew results, installed-artifact ownership, Sparkle compatibility
 filters, HTTPS redirect protection, and accurate incomplete-check status.
@@ -17,3 +22,10 @@ Next verification work:
   release distribution is requested.
 
 See `docs/audit-2026-10-12.md` for observed verification and remaining boundaries.
+
+Verification on 2026-10-23: the Xcode test suite passed (96 executed, four opt-in
+live-install tests skipped, zero failures). The local build/launch check passed,
+and a read-only live report completed without source failures. Xcode emitted only
+its App Intents metadata-extraction warning (this app has no App Intents dependency).
+UI automation timed out, so visual/keyboard inspection remains open. No real app
+updates, signed release, or installed-copy replacement were performed in this pass.

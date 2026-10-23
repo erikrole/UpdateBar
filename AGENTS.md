@@ -27,10 +27,15 @@ Own-app GitHub releases with a `.dmg` asset install in place (`DMGInstaller`: do
 quit, swap with backup, relaunch). Casks for apps Homebrew doesn't own (e.g. Claude) with a .dmg/.zip download install in place the same way, verified against the
 installed app's own Team ID (`archiveInstall`); .pkg casks (`pkgInstall`) download over https into `~/Library/Caches/UpdateBar/pkg`, verify `pkgutil --check-signature` (Developer ID
 Installer, same Team ID) and Gatekeeper, then open the package in Apple's Installer, which asks for the password itself (UpdateBar never
-elevates); staged packages are swept at launch. Browsers with an update page keep "Open"/a link.
+elevates); packages older than seven days are swept at launch only when Apple’s Installer is not running. Browsers with an update page keep "Open"/a link.
 
 Tests must use isolated defaults and fixture network responses. Never invoke
 `--install`, Homebrew upgrades, or real Sparkle installs merely to test the app.
 Do not commit cached indexes, application inventories, live reports, generated
 builds, signing material, or personal defaults. Build/report proof is separate
 from UI inspection, actual installs, and signed/notarized distribution.
+
+Package preparation uses the same reservation as in-place installs, but `.pkgInstall`
+is excluded from Update all and never reported as installed. Normal Quit is blocked
+while UpdateBar owns an active installer. Keep staging tests in temporary directories;
+never write test fixtures into the real package cache.

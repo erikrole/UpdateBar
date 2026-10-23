@@ -312,6 +312,75 @@ final class StoreRegressionTests: XCTestCase {
         return .init(apps: [app], result: CheckerResult(updates: [update]), tools: [tool])
     }
 
+    private func packageSnapshot() -> UpdateStore.CheckSnapshot {
+        var value = snapshot()
+        let app = InstalledApp(bundleIdentifier: "test.Package", name: "Package", url: URL(filePath: "/tmp/Package.app"), shortVersion: "1", buildVersion: nil, sparkleFeedURL: nil, hasAppStoreReceipt: false)
+        value.apps.append(app)
+        value.result.updates.append(AvailableUpdate(bundleIdentifier: app.id, source: .homebrew, version: "2", comparableVersion: "2", releaseDate: nil, releaseNotes: nil, releaseNotesURL: nil, downloadURL: nil, action: .pkgInstall(URL(string: "https://example.com/update.pkg")!)))
+        return value
+    }
+
+    func testUpdateAllExcludesInteractivePackages() async {
+        let result = packageSnapshot(), checks = Counter()
+        let refreshed = expectation(description: "refreshed")
+        var installed: [String] = []
+        let store = UpdateStore(defaults: preferences(), collect: { _, _, _ in
+            if checks.increment() == 2 { refreshed.fulfill() }
+            return result
+        }, installApp: { row, _, _ in installed.append(row.id); return nil })
+        await store.checkNow(notify: false)
+        XCTAssertEqual(store.inPlaceUpdateCount, 1)
+        store.updateAllInPlace()
+        await fulfillment(of: [refreshed], timeout: 2)
+        XCTAssertEqual(installed, ["test.App"])
+        XCTAssertEqual(store.banner?.text, "Updated 1 app")
+    }
+
+    func testPackageReservesInstallerAndReportsManualFinish() async throws {
+        let result = packageSnapshot(), checks = Counter(), installs = Counter(), gate = Gate()
+        let started = expectation(description: "package started"), refreshed = expectation(description: "refreshed")
+        let store = UpdateStore(defaults: preferences(), collect: { _, _, _ in
+            if checks.increment() == 2 { refreshed.fulfill() }
+            return result
+        }, installApp: { _, _, _ in
+            _ = installs.increment(); started.fulfill(); await gate.wait(); return nil
+        })
+        await store.checkNow(notify: false)
+        let package = try XCTUnwrap(store.rows.first { $0.id == "test.Package" })
+        XCTAssertFalse(package.installsInPlace)
+        XCTAssertTrue(package.requiresInstallerReservation)
+        store.perform(package)
+        store.perform(package)
+        await fulfillment(of: [started], timeout: 2)
+        XCTAssertFalse(store.canInstallUpdates)
+        XCTAssertEqual(store.statusSummary, "Updating apps…")
+        XCTAssertEqual(installs.value, 1)
+        await gate.open()
+        await fulfillment(of: [refreshed], timeout: 2)
+        XCTAssertEqual(store.actionMessages[package.id], PKGInstaller.openedNotice)
+        XCTAssertEqual(store.banner?.text, "Opened in Installer. Finish the installation there, then check again.")
+    }
+
+    func testCheckingBlocksInstallEntryPoints() async {
+        let result = snapshot(), gate = Gate(), checks = Counter(), installs = Counter()
+        let checking = expectation(description: "checking")
+        let store = UpdateStore(defaults: preferences(), collect: { _, _, _ in
+            if checks.increment() == 2 { checking.fulfill(); await gate.wait() }
+            return result
+        }, installApp: { _, _, _ in _ = installs.increment(); return nil },
+        installTools: { _, _ in _ = installs.increment(); return .success })
+        await store.checkNow(notify: false)
+        let refresh = Task { await store.checkNow(notify: false) }
+        await fulfillment(of: [checking], timeout: 2)
+        store.perform(store.rows[0])
+        store.updateAllInPlace()
+        store.upgradeAllTools()
+        XCTAssertTrue(store.runningActions.isEmpty)
+        await gate.open()
+        await refresh.value
+        XCTAssertEqual(installs.value, 0)
+    }
+
     func testConcurrentChecksShareOnePassAndAwaitCompletion() async {
         let gate = Gate(), started = expectation(description: "check started")
         let count = Counter()
@@ -634,5 +703,26 @@ final class IconThumbnailTests: XCTestCase {
         XCTAssertEqual(fitted.size, NSSize(width: 32, height: 32))
         let width = fitted.cgImage(forProposedRect: nil, context: nil, hints: nil)?.width ?? 0
         XCTAssertEqual(width, 64)
+    }
+}
+
+final class PackageStagingTests: XCTestCase {
+    func testSweepPreservesRecentPackagesAndUnrelatedFiles() throws {
+        let fm = FileManager.default
+        let directory = fm.temporaryDirectory.appending(path: "UpdateBarPackageTests-\(UUID())")
+        try fm.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: directory) }
+        let now = Date()
+        for name in ["old.pkg", "recent.pkg", "keep.txt"] {
+            let file = directory.appending(path: name)
+            try Data("fixture".utf8).write(to: file)
+            try fm.setAttributes([.modificationDate: now.addingTimeInterval(name == "recent.pkg" ? -60 : -8 * 86400)], ofItemAtPath: file.path)
+        }
+        let folder = directory.appending(path: "folder.pkg")
+        try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+        try fm.setAttributes([.modificationDate: now.addingTimeInterval(-8 * 86400)], ofItemAtPath: folder.path)
+        try fm.createSymbolicLink(at: directory.appending(path: "link.pkg"), withDestinationURL: directory.appending(path: "keep.txt"))
+        PKGInstaller.sweepStaging(in: directory, now: now)
+        XCTAssertEqual(Set(try fm.contentsOfDirectory(atPath: directory.path)), ["recent.pkg", "keep.txt", "folder.pkg", "link.pkg"])
     }
 }

@@ -13,7 +13,7 @@ enum ToolUpgradeActions {
     }
 
     private static func upgrade(names: [String], actionID: String, store: UpdateStore) {
-        guard !names.isEmpty, store.canInstallUpdates else { return }
+        guard !names.isEmpty, store.canInstallUpdates, !store.isChecking else { return }
         store.actionMessages[actionID] = nil
         store.banner = nil
         store.runningActions.insert(actionID)

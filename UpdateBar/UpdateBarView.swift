@@ -54,6 +54,8 @@ struct UpdateBarView: View {
                 .buttonStyle(.borderless)
                 .disabled(store.isChecking)
                 .help("Check now")
+                .accessibilityLabel("Check now")
+                .keyboardShortcut("r", modifiers: .command)
 
                 Button {
                     showingSettings.toggle()
@@ -62,6 +64,7 @@ struct UpdateBarView: View {
                 }
                 .buttonStyle(.borderless)
                 .help(showingSettings ? "Close settings" : "Settings")
+                .accessibilityLabel(showingSettings ? "Close settings" : "Settings")
             }
             .padding(.top, 2)
         }
@@ -91,6 +94,8 @@ struct UpdateBarView: View {
                 .buttonStyle(.borderless)
                 .controlSize(.small)
                 .foregroundStyle(.secondary)
+                .disabled(!store.runningActions.isEmpty)
+                .help(store.runningActions.isEmpty ? "Quit UpdateBar" : "Wait for the current update to finish")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
@@ -222,6 +227,7 @@ struct UpdateBarView: View {
                     Text("\(failure.subject) (\(failure.source.label)): \(failure.message)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
@@ -266,10 +272,11 @@ private struct UpdateRow: View {
 
                 if isRunning {
                     ProgressView().controlSize(.small)
+                        .accessibilityLabel(message ?? "Updating")
                 } else {
                     Button(actionTitle, action: perform)
                         .controlSize(.small)
-                        .disabled(row.installsInPlace && !canInstall)
+                        .disabled(row.requiresInstallerReservation && !canInstall)
                 }
             }
             .contentShape(Rectangle())
@@ -292,6 +299,14 @@ private struct UpdateRow: View {
                     .padding(.leading, 42)
             }
 
+            Button(action: toggle) {
+                Label(isExpanded ? "Hide details" : "Release notes and options", systemImage: isExpanded ? "chevron.up" : "chevron.down")
+            }
+            .buttonStyle(.borderless)
+            .font(.caption)
+            .padding(.leading, 42)
+            .accessibilityLabel("\(isExpanded ? "Hide" : "Show") details for \(row.app.name)")
+
             if isExpanded {
                 details.padding(.leading, 42)
             }
@@ -309,7 +324,8 @@ private struct UpdateRow: View {
 
     private var actionTitle: String {
         switch row.update.action {
-        case .brewUpgrade, .sparkleInstall, .dmgInstall, .archiveInstall, .pkgInstall: "Update"
+        case .brewUpgrade, .sparkleInstall, .dmgInstall, .archiveInstall: "Update"
+        case .pkgInstall: "Install…"
         case .openAppStore: "App Store"
         case .launchApp: UpdateStore.updatePage(for: row.app.bundleIdentifier) == nil ? "Open" : "Update"
         case .openURL: "Download"
@@ -318,6 +334,11 @@ private struct UpdateRow: View {
 
     private var details: some View {
         VStack(alignment: .leading, spacing: 8) {
+            if case .pkgInstall = row.update.action {
+                Text("Downloads and verifies the package, then opens Apple’s Installer. Finish the installation there and check again.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             if let date = row.update.releaseDate {
                 Text("Released \(date.formatted(date: .abbreviated, time: .omitted))")
                     .font(.caption)
