@@ -70,3 +70,8 @@ and macOS 27 or later. The tag points to `eec5fb77b98a1a72d62442a51a26e1b7299c2d
 
 Do not commit certificates, private keys, provisioning assets, or notarization
 credentials.
+
+Version 0.1.2 (build 4) was signed, notarized, installed, and published on 2026-10-23:
+https://github.com/erikrole/UpdateBar/releases/tag/v0.1.2. Its source commit is
+`a1d588f1d57281eb403b3266d9a068700abd5cd6`. See
+[release notes](release-notes-0.1.2.md) for the Homebrew relaunch fix and verification.

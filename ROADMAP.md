@@ -92,3 +92,14 @@ copy was detached; it updated/relaunched successfully but is not Homebrew proof.
 The isolated full suite passed 99 tests with five opt-in live tests skipped; the
 Homebrew live test separately passed. Concurrent app-self-update edits were excluded
 from the isolated build. The published 0.1.1 release has not been replaced.
+
+UpdateBar 0.1.2 (4) was Developer ID signed, notarized, stapled, installed, and
+published on 2026-10-23 at https://github.com/erikrole/UpdateBar/releases/tag/v0.1.2.
+The release targets `a1d588f1d57281eb403b3266d9a068700abd5cd6`; the uploaded ZIP
+matches the local SHA-256 `0b0d31eb517be28d8830b35115c9231b56e1163f34b9ca5c9aa229c53efdca8e`.
+The installed app passed strict code-signature verification and Gatekeeper,
+launched from /Applications, and displayed its menu and automatic scan results.
+The release report scanned 103 apps, with GitHub checks returning HTTP 403 because
+the anonymous API quota was exhausted (remaining=0). This external check limitation
+is separate from successful signing, installation, and GitHub release publication.
+The previous installed app and release evidence are retained outside the repository.
