@@ -3,7 +3,7 @@ import Foundation
 /// Repeating discretionary update check.
 ///
 /// Uses `NSBackgroundActivityScheduler` so the system can delay the check by a
-/// full interval. A run-loop `Timer` fires as soon as the process resumes if
+/// half interval. A run-loop `Timer` fires as soon as the process resumes if
 /// its fire date passed during sleep, which runs a check on wake. Nothing here
 /// observes `NSWorkspace.didWakeNotification`.
 @MainActor
@@ -48,10 +48,9 @@ struct BackgroundCheckSchedule: Equatable, Sendable {
 
     init(hours: Int) {
         interval = TimeInterval(max(1, hours) * 3600)
-        // As wide as the interval. A tight tolerance asks the system to run at
-        // the deadline, including the instant a Mac wakes if that deadline
-        // passed during sleep.
-        tolerance = interval
+        // macOS requires tolerance to be strictly less than the interval.
+        // Keep a generous window so discretionary work need not run on wake.
+        tolerance = interval / 2
     }
 }
 

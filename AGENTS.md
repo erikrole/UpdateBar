@@ -39,3 +39,7 @@ Package preparation uses the same reservation as in-place installs, but `.pkgIns
 is excluded from Update all and never reported as installed. Normal Quit is blocked
 while UpdateBar owns an active installer. Keep staging tests in temporary directories;
 never write test fixtures into the real package cache.
+
+Background-check tolerance must be strictly less than its interval; macOS 27
+throws during scheduling otherwise. Preserve the real-system scheduler regression
+test as well as the injected scheduler tests.

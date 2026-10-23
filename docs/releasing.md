@@ -41,8 +41,8 @@ The script generates a Release archive, exports Developer ID-signed
 and writes:
 
 ```text
-.release/UpdateBar-0.1.0-arm64.zip
-.release/UpdateBar-0.1.0-arm64.zip.sha256
+.release/UpdateBar-0.1.1-arm64.zip
+.release/UpdateBar-0.1.1-arm64.zip.sha256
 ```
 
 ## GitHub release

@@ -18,14 +18,24 @@ Next verification work:
   Homebrew setups. Secondary Homebrew prefixes are deliberately excluded.
 - Profile a larger app library with Instruments; current benchmark isolates
   index loading and does not measure total network-check latency.
-- Prepare a signed/notarized release through `scripts/release-macos.sh` when
-  release distribution is requested.
+- Publish the signed release to GitHub when public distribution is requested.
 
 See `docs/audit-2026-10-12.md` for observed verification and remaining boundaries.
 
-Verification on 2026-10-23: the Xcode test suite passed (96 executed, four opt-in
+Verification on 2026-10-23: the Xcode test suite passed (97 executed, four opt-in
 live-install tests skipped, zero failures). The local build/launch check passed,
 and a read-only live report completed without source failures. Xcode emitted only
 its App Intents metadata-extraction warning (this app has no App Intents dependency).
-UI automation timed out, so visual/keyboard inspection remains open. No real app
-updates, signed release, or installed-copy replacement were performed in this pass.
+The authorized macOS accessibility/screenshot fallback subsequently verified the
+menu, settings, scrolling, package details, and Command-R refresh on macOS 27.0.1.
+Real third-party installs and other supported macOS configurations remain open.
+
+Release verification found and fixed a macOS 27 startup exception: the background
+scheduler rejected tolerance equal to its interval. Build 3 uses half the interval
+and adds a real-system scheduler test. Four opt-in installer tests remain skipped.
+
+UpdateBar 0.1.1 (3) was Developer ID signed, notarized, stapled, and installed in
+`/Applications/UpdateBar.app` on 2026-10-23. Gatekeeper accepted it as Notarized
+Developer ID. The installed app automatically scanned 103 apps and displayed 11
+updates, with no uncaught startup exception. The pre-upgrade 0.1.0 copy is retained
+outside the repository for rollback. No GitHub release/tag was published.

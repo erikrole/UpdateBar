@@ -581,12 +581,22 @@ final class BackgroundCheckSchedulerTests: XCTestCase {
     func testScheduleToleranceMatchesTheInterval() {
         let hour = BackgroundCheckSchedule(hours: 1)
         XCTAssertEqual(hour.interval, 3600)
-        XCTAssertEqual(hour.tolerance, hour.interval)
+        XCTAssertEqual(hour.tolerance, hour.interval / 2)
         let day = BackgroundCheckSchedule(hours: 24)
-        XCTAssertEqual(day.tolerance, 24 * 3600)
+        XCTAssertEqual(day.tolerance, 12 * 3600)
         let clamped = BackgroundCheckSchedule(hours: 0)
         XCTAssertEqual(clamped.interval, 3600)
-        XCTAssertEqual(clamped.tolerance, clamped.interval)
+        XCTAssertEqual(clamped.tolerance, clamped.interval / 2)
+    }
+
+    func testSystemSchedulerAcceptsConfiguredTiming() {
+        let activity = SystemBackgroundActivity(identifier: "com.erole.UpdateBar.test.\(UUID())")
+        let timing = BackgroundCheckSchedule(hours: 1)
+        activity.interval = timing.interval
+        activity.tolerance = timing.tolerance
+        activity.repeats = true
+        activity.schedule { completion in completion(.finished) }
+        activity.invalidate()
     }
 
     func testDeferredInvocationDoesNotCheck() {
@@ -619,7 +629,7 @@ final class BackgroundCheckSchedulerTests: XCTestCase {
         XCTAssertNil(made[0].handler)
         XCTAssertFalse(made[1].invalidated)
         XCTAssertEqual(made[1].interval, 3600)
-        XCTAssertEqual(made[1].tolerance, 3600)
+        XCTAssertEqual(made[1].tolerance, 1800)
         XCTAssertTrue(made[1].repeats)
         XCTAssertEqual(made[1].qualityOfService, .utility)
     }
@@ -640,7 +650,7 @@ final class BackgroundCheckSchedulerTests: XCTestCase {
         store.checkIntervalHours = 12
 
         XCTAssertEqual(activity.interval, 12 * 3600)
-        XCTAssertEqual(activity.tolerance, activity.interval)
+        XCTAssertEqual(activity.tolerance, activity.interval / 2)
         XCTAssertTrue(activity.repeats)
         XCTAssertEqual(activity.qualityOfService, .utility)
         XCTAssertEqual(checks.value, 0, "Scheduling the repeating check must not run it")
