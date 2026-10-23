@@ -12,8 +12,9 @@ filters, HTTPS redirect protection, and accurate incomplete-check status.
 
 Next verification work:
 
-- Exercise real Homebrew installs with specifically chosen updates, including
-  failures requiring a Terminal password. The Sparkle success path is verified below.
+- Close the Homebrew app lifecycle gap: explicitly manage running-app relaunch.
+  Verify a fresh download and password-required failures; the cached Granola install
+  and automatic list refresh are verified below.
 - Verify the menu visually on macOS 27 and newer, plus native/Rosetta and Intel
   Homebrew setups. Secondary Homebrew prefixes are deliberately excluded.
 - Profile a larger app library with Instruments; current benchmark isolates
@@ -53,3 +54,21 @@ Sparkle logged a stale download-bookmark warning but continued successfully.
 Intermediate download-percentage UI was not captured. Private evidence and the
 pre-update backup are retained outside the repository. Homebrew, DMG, interactive
 package completion, and failure/recovery paths were not exercised in this test.
+
+Homebrew app test on 2026-10-23 (installed UpdateBar 0.1.1 build 3): Granola's
+Update button spawned `brew upgrade --cask granola` as a child of UpdateBar.
+The app advanced from 7.663.2 to 7.668.2; Homebrew's installed cask receipt also
+advanced to 7.668.2. The cached 293 MB DMG matched the cask SHA-256, and the
+installed bundle passed strict deep signing verification and Gatekeeper.
+The UI showed Downloading and automatically removed Granola, reducing pending
+updates from 10 to 9. A read-only report agreed, although unrelated GitHub source
+checks returned HTTP 403, so that report was incomplete overall.
+
+This is a partial end-to-end pass: the archive was already cached, so fresh network
+download was not verified. The old process remained running after Homebrew finished.
+Granola's own Squirrel updater subsequently replaced/relaunched the app (confirmed
+in its ShipIt log), before the manual restart attempt. That relaunch cannot be
+credited to UpdateBar, whose Homebrew action has no explicit relaunch lifecycle.
+Granola 7.668.2 is running with its window accessible. The backup and private test
+evidence remain outside the repository. No implementation changes were made for
+this test; a controlled Homebrew relaunch test remains required after the fix.
