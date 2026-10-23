@@ -75,3 +75,7 @@ Version 0.1.2 (build 4) was signed, notarized, installed, and published on 2026-
 https://github.com/erikrole/UpdateBar/releases/tag/v0.1.2. Its source commit is
 `a1d588f1d57281eb403b3266d9a068700abd5cd6`. See
 [release notes](release-notes-0.1.2.md) for the Homebrew relaunch fix and verification.
+
+## Verified updater release: 0.1.3 (build 5)
+
+Published October 23, 2026 at [UpdateBar 0.1.3](https://github.com/erikrole/UpdateBar/releases/tag/v0.1.3). Source commit: `5675bd0287983d492af9548a4a1cadf39ed0556e`. The app and its owned extensions/helpers require macOS 27.0 in Info.plist and Mach-O. The arm64 ZIP is Developer ID signed with Team `T26T3G8C7Q`, accepted by Apple notarization, stapled, and accepted by Gatekeeper after fresh extraction. ZIP/checksum/provenance digests match GitHub. Host tests: 99 reported, 5 skipped, zero failures. AppUpdater’s live download/verification path also passed for this public release.

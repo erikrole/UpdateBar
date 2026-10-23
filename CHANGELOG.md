@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3 - 2026-10-23
+
+- Add signed ZIP self-updates through AppUpdater, preserving save and busy safeguards.
+- Publish a notarized Apple Silicon release requiring macOS 27 or later.
+
 ## 0.1.1 (3) — 2026-10-23
 
 - Requires macOS 27 or later.

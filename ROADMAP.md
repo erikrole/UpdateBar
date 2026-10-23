@@ -104,4 +104,4 @@ the anonymous API quota was exhausted (remaining=0). This external check limitat
 is separate from successful signing, installation, and GitHub release publication.
 The previous installed app and release evidence are retained outside the repository.
 
-- October 23: AppUpdater ZIP integration is prepared against package `5b5a941`, retaining macOS 27 and existing save/busy/quit safeguards. A new host release is still required; see README App updates.
+- October 23: [UpdateBar 0.1.3](https://github.com/erikrole/UpdateBar/releases/tag/v0.1.3) is published with AppUpdater ZIP support. macOS 27, signing, notarization, fresh-extraction Gatekeeper checks, and the public update feed are verified. Installed update/relaunch acceptance remains a separate check.
