@@ -118,10 +118,7 @@ enum AppUpdateActions {
     ) async -> String? {
         switch row.update.action {
         case let .brewUpgrade(token):
-            let outcome = await BrewRunner.upgrade(cask: token) { event in
-                Task { @MainActor in progress("\(event.stage.label)…") }
-            }
-            if case let .failure(message) = outcome { return message }
+            return await BrewAppInstaller.install(row.app, token: token, progress: progress)
         case .sparkleInstall:
             if case let .failure(message) = await SparkleInstaller.install(row.app, channels: channels, progress: progress) {
                 return message

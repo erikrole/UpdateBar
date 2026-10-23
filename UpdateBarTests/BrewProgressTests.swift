@@ -1,4 +1,5 @@
 import XCTest
+import AppKit
 @testable import UpdateBar
 
 final class BrewProgressTests: XCTestCase {
@@ -69,5 +70,72 @@ final class BrewProgressTests: XCTestCase {
         XCTAssertEqual(progress.finished, 1)
         progress.apply(.init(names: ["ffmpeg"], stage: .downloading))
         XCTAssertEqual(progress.stages["ffmpeg"], .failed)
+    }
+}
+
+@MainActor
+final class BrewAppLifecycleTests: XCTestCase {
+    func testLifecycleOrderingAndFailureBoundaries() async {
+        for scenario in ["running", "closed", "downloadFailure", "quitRefused", "upgradeFailure", "launchFailure"] {
+            var events: [String] = []
+            let error = await BrewAppInstaller.lifecycle(
+                fetch: { events.append("fetch"); return scenario == "downloadFailure" ? .failure("download") : .success },
+                isRunning: { events.append("running"); return scenario != "closed" },
+                quit: { events.append("quit"); return scenario == "quitRefused" ? "quit refused" : nil },
+                upgrade: { events.append("upgrade"); return scenario == "upgradeFailure" ? .failure("upgrade") : .success },
+                relaunch: { events.append("relaunch"); return scenario == "launchFailure" ? "launch" : nil }
+            )
+            switch scenario {
+            case "downloadFailure":
+                XCTAssertEqual(events, ["fetch"]); XCTAssertEqual(error, "download")
+            case "quitRefused":
+                XCTAssertEqual(events, ["fetch", "running", "quit"]); XCTAssertEqual(error, "quit refused")
+            case "closed":
+                XCTAssertEqual(events, ["fetch", "running", "upgrade"]); XCTAssertNil(error)
+            default:
+                XCTAssertEqual(events, ["fetch", "running", "quit", "upgrade", "relaunch"])
+                if scenario == "running" { XCTAssertNil(error) }
+                if scenario == "upgradeFailure" { XCTAssertEqual(error, "upgrade") }
+                if scenario == "launchFailure" { XCTAssertTrue(error?.contains("updated, but couldn't reopen") == true) }
+            }
+        }
+    }
+}
+
+@MainActor
+final class BrewAppLiveTests: XCTestCase {
+    /// Explicit opt-in only; updates the named real app through the production action/store pipeline.
+    func testRealHomebrewUpdate() async throws {
+        let env = ProcessInfo.processInfo.environment
+        try XCTSkipUnless(env["UPDATEBAR_LIVE_BREW"] == "1")
+        let id = try XCTUnwrap(env["UPDATEBAR_LIVE_BUNDLE_ID"])
+        let token = try XCTUnwrap(env["UPDATEBAR_LIVE_CASK"])
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: UUID().uuidString))
+        let store = UpdateStore(defaults: defaults, collect: { _, _, _ in
+            let apps = AppScanner().scan().filter { $0.bundleIdentifier == id }
+            return UpdateStore.CheckSnapshot(apps: apps, result: await HomebrewChecker().check(apps))
+        })
+        await store.checkNow()
+        let row = try XCTUnwrap(store.rows.first)
+        XCTAssertEqual(row.update.action, .brewUpgrade(token: token))
+        guard row.update.action == .brewUpgrade(token: token) else { return }
+        let old = NSRunningApplication.runningApplications(withBundleIdentifier: id).map(\.processIdentifier)
+        XCTAssertFalse(old.isEmpty)
+        print("LIVE BEFORE \(row.app.displayVersion) -> \(row.update.version), PIDs \(old)")
+        AppUpdateActions.perform(row, store: store)
+        let deadline = Date().addingTimeInterval(300)
+        while (!store.runningActions.isEmpty || store.isChecking) && Date() < deadline {
+            if let status = store.actionMessages[row.id] { print("LIVE STAGE \(status)") }
+            try await Task.sleep(for: .seconds(1))
+        }
+        XCTAssertTrue(store.runningActions.isEmpty)
+        XCTAssertFalse(store.isChecking)
+        XCTAssertEqual(store.banner?.text, "Updated 1 app")
+        XCTAssertFalse(store.rows.contains { $0.id == id })
+        XCTAssertEqual(store.installedApps.first?.shortVersion, row.update.version)
+        let new = NSRunningApplication.runningApplications(withBundleIdentifier: id).map(\.processIdentifier)
+        XCTAssertFalse(new.isEmpty)
+        XCTAssertTrue(Set(old).isDisjoint(with: new))
+        print("LIVE AFTER PIDs \(new), pending \(store.rows.count), banner \(store.banner?.text ?? "none")")
     }
 }

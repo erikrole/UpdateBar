@@ -43,3 +43,11 @@ never write test fixtures into the real package cache.
 Background-check tolerance must be strictly less than its interval; macOS 27
 throws during scheduling otherwise. Preserve the real-system scheduler regression
 test as well as the injected scheduler tests.
+
+Homebrew app updates use `BrewAppInstaller` for both UI and CLI: fetch first,
+then normally terminate only the matching installed app, wait for exit, upgrade,
+and reopen only if previously running. Never force-quit. Keep the installer
+reservation through relaunch and restore running state on upgrade failure.
+`BrewAppLiveTests` requires explicit user authorization and `TEST_RUNNER_UPDATEBAR_LIVE_BREW=1`,
+plus `TEST_RUNNER_UPDATEBAR_LIVE_BUNDLE_ID` and `TEST_RUNNER_UPDATEBAR_LIVE_CASK`.
+Use an empty `TEST_RUNNER_HOMEBREW_CACHE` to prove a fresh download.

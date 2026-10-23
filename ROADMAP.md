@@ -12,9 +12,8 @@ filters, HTTPS redirect protection, and accurate incomplete-check status.
 
 Next verification work:
 
-- Close the Homebrew app lifecycle gap: explicitly manage running-app relaunch.
-  Verify a fresh download and password-required failures; the cached Granola install
-  and automatic list refresh are verified below.
+- Verify Homebrew password-required failures on a real affected cask. Normal quit,
+  fresh download, automatic relaunch, and refresh are now verified below.
 - Verify the menu visually on macOS 27 and newer, plus native/Rosetta and Intel
   Homebrew setups. Secondary Homebrew prefixes are deliberately excluded.
 - Profile a larger app library with Instruments; current benchmark isolates
@@ -72,3 +71,24 @@ credited to UpdateBar, whose Homebrew action has no explicit relaunch lifecycle.
 Granola 7.668.2 is running with its window accessible. The backup and private test
 evidence remain outside the repository. No implementation changes were made for
 this test; a controlled Homebrew relaunch test remains required after the fix.
+
+Homebrew relaunch fix and controlled live verification on 2026-10-23:
+`BrewAppInstaller` now fetches before quitting, waits up to 30 seconds for a normal
+exit, upgrades, and awaits relaunch before releasing the reservation and refreshing.
+It leaves initially closed apps closed and attempts to reopen the previous app on
+upgrade failure. Both UI and CLI use the same lifecycle. Regression scenarios cover
+download failure, refusal to quit, upgrade failure, relaunch failure, and running
+versus closed apps.
+
+A controlled live test restored the retained CodexBar 0.79.0 bundle (preserving
+settings and backing up 0.80.0), selected the actual Homebrew checker result, and
+called the production action/store pipeline. Homebrew fetched the 81 MB archive
+into a previously empty cache, upgraded its receipt to 0.80.0, and UpdateBar
+relaunched CodexBar with a new PID. Automatic refresh removed the pending row and
+showed “Updated 1 app.” Signing and Gatekeeper passed. This was an opt-in integration
+harness, not a UI click: normal source precedence chooses Sparkle for CodexBar.
+The earlier Cursor UI attempt used the direct-archive path because its old Caskroom
+copy was detached; it updated/relaunched successfully but is not Homebrew proof.
+The isolated full suite passed 99 tests with five opt-in live tests skipped; the
+Homebrew live test separately passed. Concurrent app-self-update edits were excluded
+from the isolated build. The published 0.1.1 release has not been replaced.

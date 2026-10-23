@@ -25,7 +25,9 @@ is used.
 - Per-app beta opt-in for Sparkle apps whose feeds publish pre-release channels
   (Settings → Beta updates); beta offers are labelled in the list.
 - One-click updates: `brew upgrade --cask` for Homebrew installs (as you, never
-  with admin rights), in-place installs for Sparkle apps that sign their updates
+  with admin rights). Homebrew app updates download first, wait for a normal quit,
+  and automatically reopen apps that were running. Unsaved work is never force-quit.
+  Other supported paths include in-place installs for Sparkle apps that sign their updates
   (via the embedded [Sparkle](https://sparkle-project.org) framework, verified
   against each app's own EdDSA key; the app quits and reopens if it was running),
   and the App Store's Updates page for store apps. "Update all" runs every

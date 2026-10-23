@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 /// Runs Homebrew as the current user, never with elevated rights.
 enum BrewRunner {
@@ -9,6 +10,10 @@ enum BrewRunner {
 
     static var brewPath: String? {
         ["/opt/homebrew/bin/brew", "/usr/local/bin/brew"].first { FileManager.default.isExecutableFile(atPath: $0) }
+    }
+
+    static func fetch(cask token: String) async -> Outcome {
+        await run(["fetch", "--cask", token], retryHint: "brew fetch --cask \(token)", onEvent: nil)
     }
 
     static func upgrade(cask token: String, onEvent: (@Sendable (BrewOutputParser.Event) -> Void)? = nil) async -> Outcome {
@@ -76,5 +81,64 @@ enum BrewRunner {
         let errorLine = output.split(separator: "\n").last { $0.localizedCaseInsensitiveContains("error") }
         return errorLine.map { String($0).trimmingCharacters(in: .whitespaces) }
             ?? "brew failed. Run `\(command)` in Terminal to see why."
+    }
+}
+
+
+/// Keeps the reservation until the app has reopened. Never force-quits unsaved work.
+@MainActor
+enum BrewAppInstaller {
+    static func install(_ app: InstalledApp, token: String, progress: @escaping @MainActor (String) -> Void) async -> String? {
+        var running: [NSRunningApplication] = []
+        return await lifecycle(
+            fetch: { progress("Downloading…"); return await BrewRunner.fetch(cask: token) },
+            isRunning: {
+                running = NSRunningApplication.runningApplications(withBundleIdentifier: app.bundleIdentifier)
+                    .filter { $0.bundleURL?.resolvingSymlinksInPath() == app.url.resolvingSymlinksInPath() }
+                return !running.isEmpty
+            },
+            quit: {
+                progress("Waiting for \(app.name) to quit…")
+                for process in running { process.terminate() }
+                for _ in 0..<150 {
+                    if running.allSatisfy(\.isTerminated) { return nil }
+                    try? await Task.sleep(for: .milliseconds(200))
+                }
+                return "Quit \(app.name) and save any open work, then try again."
+            },
+            upgrade: {
+                progress("Installing…")
+                return await BrewRunner.upgrade(cask: token)
+            },
+            relaunch: {
+                progress("Relaunching…")
+                do {
+                    let configuration = NSWorkspace.OpenConfiguration()
+                    configuration.activates = false
+                    _ = try await NSWorkspace.shared.openApplication(at: app.url, configuration: configuration)
+                    return nil
+                } catch { return error.localizedDescription }
+            }
+        )
+    }
+
+    static func lifecycle(
+        fetch: () async -> BrewRunner.Outcome,
+        isRunning: () -> Bool,
+        quit: () async -> String?,
+        upgrade: () async -> BrewRunner.Outcome,
+        relaunch: () async -> String?
+    ) async -> String? {
+        if case let .failure(message) = await fetch() { return message }
+        let wasRunning = isRunning()
+        if wasRunning, let message = await quit() { return message }
+        let outcome = await upgrade()
+        // Restore the user's running state on failure too, when Homebrew kept the old app.
+        let launchError = wasRunning ? await relaunch() : nil
+        if case let .failure(message) = outcome {
+            return message + (launchError.map { " Couldn't reopen the app: \($0)" } ?? "")
+        }
+        if let launchError { return "The app updated, but couldn't reopen: \(launchError)" }
+        return nil
     }
 }

@@ -170,9 +170,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case let .failure(message): outcome = "FAILED \(message)"
             }
         case let .brewUpgrade(token):
-            switch await BrewRunner.upgrade(cask: token) {
-            case .success: outcome = "INSTALLED \(row.app.name) \(row.update.version)"
-            case let .failure(message): outcome = "FAILED \(message)"
+            switch await BrewAppInstaller.install(row.app, token: token, progress: { print("  \($0)") }) {
+            case nil: outcome = "INSTALLED \(row.app.name) \(row.update.version)"
+            case let message?: outcome = "FAILED \(message)"
             }
         case let .dmgInstall(url), let .archiveInstall(url):
             let team: String? = if case .dmgInstall = row.update.action { DMGInstaller.ownTeamID } else { nil }
