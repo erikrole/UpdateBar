@@ -47,27 +47,26 @@ and writes:
 
 ## GitHub release
 
-The release workflow runs when a `v*` tag is pushed. It expects these GitHub
-Actions secrets:
-
-- `APPLE_TEAM_ID`
-- `DEVELOPER_ID_CERTIFICATE_P12` (base64-encoded certificate and private key)
-- `DEVELOPER_ID_CERTIFICATE_PASSWORD`
-- `KEYCHAIN_PASSWORD`
-- `NOTARY_KEY_ID`
-- `NOTARY_ISSUER_ID`
-- `NOTARY_PRIVATE_KEY` (base64-encoded `.p8` key)
-
-After the secrets are configured:
+There is currently no checked-in GitHub Actions release workflow. Publish the
+verified local ZIP and checksum with the GitHub CLI, targeting the exact source
+commit used for the build. Prepare release notes in a file, then stage a draft:
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+gh release create v0.1.1 /path/to/UpdateBar-0.1.1-arm64.zip \
+  /path/to/UpdateBar-0.1.1-arm64.zip.sha256 \
+  --repo erikrole/UpdateBar --target <build-commit-sha> \
+  --title 'UpdateBar 0.1.1' --notes-file /path/to/release-notes.md --draft
 ```
 
-The workflow verifies that the tag matches `MARKETING_VERSION`, builds and
-notarizes the arm64 app, calculates a SHA-256 checksum, and creates the GitHub
-Release with both files attached.
+Verify the uploaded asset digest matches the local checksum, then publish:
+
+```sh
+gh release edit v0.1.1 --repo erikrole/UpdateBar --draft=false --latest
+```
+
+Version 0.1.1 (build 3) was published on 2026-10-23 at
+https://github.com/erikrole/UpdateBar/releases/tag/v0.1.1. It requires Apple Silicon
+and macOS 27 or later. The tag points to `eec5fb77b98a1a72d62442a51a26e1b7299c2df3`.
 
 Do not commit certificates, private keys, provisioning assets, or notarization
 credentials.

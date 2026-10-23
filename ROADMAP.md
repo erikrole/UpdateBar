@@ -18,7 +18,7 @@ Next verification work:
   Homebrew setups. Secondary Homebrew prefixes are deliberately excluded.
 - Profile a larger app library with Instruments; current benchmark isolates
   index loading and does not measure total network-check latency.
-- Publish the signed release to GitHub when public distribution is requested.
+- Continue validating real installer flows on supported macOS configurations.
 
 See `docs/audit-2026-10-12.md` for observed verification and remaining boundaries.
 
@@ -38,4 +38,6 @@ UpdateBar 0.1.1 (3) was Developer ID signed, notarized, stapled, and installed i
 `/Applications/UpdateBar.app` on 2026-10-23. Gatekeeper accepted it as Notarized
 Developer ID. The installed app automatically scanned 103 apps and displayed 11
 updates, with no uncaught startup exception. The pre-upgrade 0.1.0 copy is retained
-outside the repository for rollback. No GitHub release/tag was published.
+outside the repository for rollback. The signed ZIP, checksum, and release notes were published as
+[v0.1.1](https://github.com/erikrole/UpdateBar/releases/tag/v0.1.1), tagged at
+`eec5fb77b98a1a72d62442a51a26e1b7299c2df3`.
