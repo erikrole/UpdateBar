@@ -464,6 +464,7 @@ private struct ToolRow: View {
 }
 
 private struct SettingsView: View {
+    @AppStorage(SelfUpdate.autoUpdateKey) private var autoUpdate = true
     @Bindable var store: UpdateStore
     @Bindable var launchAtLogin: LaunchAtLoginController
 
@@ -513,6 +514,7 @@ private struct SettingsView: View {
             }
 
             Section("UpdateBar") {
+                Toggle("Update UpdateBar automatically", isOn: $autoUpdate)
                 Button("Check for UpdateBar Updates…") { SelfUpdate.checkNow() }
             }
 

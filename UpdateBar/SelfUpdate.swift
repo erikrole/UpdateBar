@@ -7,8 +7,12 @@ enum SelfUpdate {
     static var busyReason: @MainActor @Sendable () -> String? = { nil }
     static let updater = AppUpdater(.init(
         repository: "erikrole/UpdateBar", assetName: "UpdateBar.zip",
-        busyReason: { busyReason() }, postUpdate: .quiet
+        busyReason: { busyReason() }, postUpdate: .quiet,
+        autoInstall: { UserDefaults.standard.object(forKey: autoUpdateKey) as? Bool ?? true }
     ))
+
+    /// The Settings switch; on unless turned off.
+    nonisolated static let autoUpdateKey = "autoUpdate"
 
     static var isPreparing: Bool { updater.isInstalling && !updater.isAwaitingRelaunch }
 
