@@ -23,7 +23,7 @@ host). Fetch (com.erole.Fetch) vs the `fetch-app` FTP client is the regression c
 Own `com.erole.*` apps are checked at `erikrole/<Name>`, then `erikrole/<name>-releases` (private source,
 public releases: Fetch, Offload).
 
-Own-app GitHub releases with a `.dmg` asset install in place (`DMGInstaller`: download, mount, codesign/Team ID T26T3G8C7Q/spctl check,
+Own-app GitHub releases with a `.dmg` (preferred) or app `.zip` asset (AppUpdater apps; never UpdateBar itself) install in place (`DMGInstaller`: download, mount, codesign/Team ID T26T3G8C7Q/spctl check,
 quit, swap with backup, relaunch). Casks for apps Homebrew doesn't own (e.g. Claude) with a .dmg/.zip download install in place the same way, verified against the
 installed app's own Team ID (`archiveInstall`); .pkg casks (`pkgInstall`) download over https into `~/Library/Caches/UpdateBar/pkg`, verify `pkgutil --check-signature` (Developer ID
 Installer, same Team ID) and Gatekeeper, then open the package in Apple's Installer, which asks for the password itself (UpdateBar never

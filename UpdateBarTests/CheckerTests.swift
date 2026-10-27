@@ -483,6 +483,15 @@ final class ScannerTests: XCTestCase {
         XCTAssertEqual(other.action, .openURL(URL(string: "https://github.com/erikrole/x-releases/releases/v2.0")!))
     }
 
+    func testOwnZipOnlyReleaseInstallsInPlace() throws {
+        let base = "https://github.com/erikrole/x-releases/releases/download/v2.0/"
+        let json = #"{"tag_name":"v2.0","html_url":"https://github.com/erikrole/x-releases/releases/v2.0","body":null,"draft":false,"prerelease":false,"published_at":null,"assets":[{"name":"X-2.0-arm64.zip.sha256","browser_download_url":"\#(base)X-2.0-arm64.zip.sha256"},{"name":"X-2.0-arm64.zip","browser_download_url":"\#(base)X-2.0-arm64.zip"}]}"#
+        let release = try JSONDecoder().decode(GitHubRelease.self, from: Data(json.utf8))
+        let installed = InstalledApp(bundleIdentifier: "com.erole.X", name: "X", url: URL(filePath: "/Applications/X.app"), shortVersion: "1.0", buildVersion: "1", sparkleFeedURL: nil, hasAppStoreReceipt: false)
+        let own = try XCTUnwrap(GitHubChecker.update(for: installed, release: release, repository: "erikrole/x-releases"))
+        XCTAssertEqual(own.action, .dmgInstall(URL(string: base + "X-2.0-arm64.zip")!))
+    }
+
     func testPackageOnlyCaskIsNamedByItsUninstallPaths() throws {
         let json = """
         [{"token":"teams","version":"2.0","url":"https://x.com/Teams.pkg",

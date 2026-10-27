@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5 - Unreleased
+
+- Update all now includes my ZIP-only apps (StatBar, Cutdown, SnipBar, Tweaks, TVBar): their GitHub releases install in place, verified against my Team ID, instead of opening the release page. UpdateBar still updates itself through AppUpdater.
+
 ## 0.1.4 - 2026-10-26
 
 - Install stable UpdateBar updates automatically at launch (Settings > UpdateBar, on by default). A failed update stops retrying after two tries.

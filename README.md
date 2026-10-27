@@ -31,7 +31,7 @@ is used.
   (via the embedded [Sparkle](https://sparkle-project.org) framework, verified
   against each app's own EdDSA key; the app quits and reopens if it was running),
   and the App Store's Updates page for store apps. "Update all" runs every
-  in-place update one after another. Chrome, Edge, Brave, and Vivaldi open their
+  in-place update one after another, including my own apps' signed DMG or ZIP releases. Chrome, Edge, Brave, and Vivaldi open their
   own update page; other self-updating apps are launched.
 - Signed package updates show “Install…” and open Apple’s Installer after verification.
   Finish there, then check again. These interactive packages are excluded from Update all.

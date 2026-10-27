@@ -77,8 +77,13 @@ struct GitHubChecker: UpdateChecker {
             let name = asset.name.lowercased()
             return name.hasSuffix(".zip") || name.hasSuffix(".dmg") || name.hasSuffix(".pkg")
         }
-        // Own releases ship a DMG that DMGInstaller verifies against our Team ID, so they install in place.
-        let dmg = release.assets.first { $0.name.lowercased().hasSuffix(".dmg") }
+        // Own releases ship a DMG or a signed app ZIP (AppUpdater apps); DMGInstaller verifies either
+        // against our Team ID, so they install in place. A DMG wins when both exist. UpdateBar updates itself through AppUpdater, never through its own installer.
+        let installable = release.assets.first { $0.name.lowercased().hasSuffix(".dmg") }
+            ?? release.assets.first { asset in
+                let name = asset.name.lowercased()
+                return name.hasSuffix(".zip") && !name.hasPrefix("fetch-") && !name.contains("-cli") && !name.contains("extension")
+            }
         let ownRelease = repository?.hasPrefix(automaticOwner + "/") == true
         return AvailableUpdate(
             bundleIdentifier: app.bundleIdentifier,
@@ -89,7 +94,7 @@ struct GitHubChecker: UpdateChecker {
             releaseNotes: release.body?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
             releaseNotesURL: release.htmlURL,
             downloadURL: asset?.downloadURL,
-            action: ownRelease && dmg != nil ? .dmgInstall(dmg!.downloadURL) : .openURL(release.htmlURL)
+            action: ownRelease && app.bundleIdentifier != Bundle.main.bundleIdentifier && installable != nil ? .dmgInstall(installable!.downloadURL) : .openURL(release.htmlURL)
         )
     }
 }
