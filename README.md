@@ -50,6 +50,10 @@ frameworks. Feeds that only work over plain HTTP are reported, not trusted.
 
 ## Build and run
 
+The layered app icon lives in [`docs/brand/UpdateBar.icon`](docs/brand/UpdateBar.icon).
+Edit it in Icon Composer; Xcode compiles the default, dark, and monochrome
+appearances plus the fallback icon. See [icon editing notes](docs/brand/README.md).
+
 Requirements: macOS 27 or later, Xcode 27 or later, and XcodeGen.
 
 ```sh

@@ -21,6 +21,7 @@ targets:
     platform: macOS
     sources:
       - UpdateBar
+      - path: docs/brand/UpdateBar.icon
     dependencies:
       - package: AppUpdater
       - package: Sparkle
@@ -33,7 +34,7 @@ targets:
         ENABLE_HARDENED_RUNTIME: YES
         GENERATE_INFOPLIST_FILE: NO
         INFOPLIST_FILE: UpdateBar/Info.plist
-        ASSETCATALOG_COMPILER_APPICON_NAME: ""
+        ASSETCATALOG_COMPILER_APPICON_NAME: UpdateBar
         DEVELOPMENT_TEAM: T26T3G8C7Q
       configs:
         Debug:

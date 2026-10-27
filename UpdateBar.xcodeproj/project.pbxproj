@@ -10,6 +10,7 @@
 		04155D010051AA3A1FBEBAD6 /* PKGInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEBA8829BA9EE858A5B10E39 /* PKGInstaller.swift */; };
 		0CD780D83793AAC1A17AEF8E /* DMGInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B8AACD36FFE219F74234407 /* DMGInstaller.swift */; };
 		0FD505553CA2C6FA280644E6 /* UpdateChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 408036FC8E91C9B0B1EE2FBF /* UpdateChecker.swift */; };
+		2ED16A97C0F9C3622DA8FF6B /* UpdateBar.icon in Resources */ = {isa = PBXBuildFile; fileRef = 34F770E9F35D98E730CEFF7E /* UpdateBar.icon */; };
 		34023FB975D1FBF5F02C4E24 /* AppStoreChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00B3EC4EAA9A01CE1CD994A9 /* AppStoreChecker.swift */; };
 		3846A1B5E9B10F72E503502E /* UpdateResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87CCCFF05642CF69E6AF4D7D /* UpdateResolver.swift */; };
 		426EBB6FE833884CCD3C5805 /* DMGInstallerLiveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B12725A5806047291F2D99DE /* DMGInstallerLiveTests.swift */; };
@@ -62,6 +63,7 @@
 		2263EA0DD4F1E26D1047BF59 /* CheckerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckerTests.swift; sourceTree = "<group>"; };
 		2CA53641A2B000222F98C964 /* UpdateNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateNotifier.swift; sourceTree = "<group>"; };
 		2DA38C0307FF8C255BD33091 /* IndexCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IndexCache.swift; sourceTree = "<group>"; };
+		34F770E9F35D98E730CEFF7E /* UpdateBar.icon */ = {isa = PBXFileReference; lastKnownFileType = wrapper.icon; path = UpdateBar.icon; sourceTree = "<group>"; };
 		408036FC8E91C9B0B1EE2FBF /* UpdateChecker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateChecker.swift; sourceTree = "<group>"; };
 		422767A185DF56A59314595D /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		56E3C06A7F03F00F98D51AD2 /* BrewRunner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrewRunner.swift; sourceTree = "<group>"; };
@@ -119,6 +121,7 @@
 		8A3D962A15BD37B62C295FD6 = {
 			isa = PBXGroup;
 			children = (
+				9B58976C1097022A4897A38A /* brand */,
 				DCC5881DD2F084D43D2024C3 /* UpdateBar */,
 				D02E1BE9B2CAB99088BCCDED /* UpdateBarTests */,
 				93BC4A799B03CA1327B96D80 /* Products */,
@@ -132,6 +135,15 @@
 				70006C32ECA724A4FDFB3524 /* UpdateBarTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		9B58976C1097022A4897A38A /* brand */ = {
+			isa = PBXGroup;
+			children = (
+				34F770E9F35D98E730CEFF7E /* UpdateBar.icon */,
+			);
+			name = brand;
+			path = docs/brand;
 			sourceTree = "<group>";
 		};
 		D02E1BE9B2CAB99088BCCDED /* UpdateBarTests */ = {
@@ -182,6 +194,7 @@
 			buildConfigurationList = 032B0AB86762BF374F8B9FA8 /* Build configuration list for PBXNativeTarget "UpdateBar" */;
 			buildPhases = (
 				D19E2EC50964F90B3F79E3EE /* Sources */,
+				FAE6879103227F8A68E0B12C /* Resources */,
 				BFE08AC6685A4F940B5C3800 /* Frameworks */,
 			);
 			buildRules = (
@@ -257,6 +270,17 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		FAE6879103227F8A68E0B12C /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2ED16A97C0F9C3622DA8FF6B /* UpdateBar.icon in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		77D24C55CA57A47207E4FA49 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -317,7 +341,7 @@
 		0F1B8C1A040A57E26930DC26 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = UpdateBar;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Automatic;
@@ -502,7 +526,7 @@
 		9B5F4AFF923D6AF89F49547D /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_APPICON_NAME = UpdateBar;
 				CODE_SIGN_IDENTITY = "Developer ID Application";
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Manual;

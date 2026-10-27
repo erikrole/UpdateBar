@@ -1,0 +1,58 @@
+{
+  "fill-specializations": [
+    {
+      "value": {
+        "automatic-gradient": "srgb:0.22353,0.61961,0.29020,1.00000"
+      }
+    },
+    {
+      "appearance": "dark",
+      "value": {
+        "automatic-gradient": "srgb:0.07059,0.19216,0.09020,1.00000"
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "UpdateBar",
+      "layers": [
+        {
+          "name": "Apps",
+          "image-name": "Apps.svg",
+          "glass": true,
+          "hidden": false,
+          "opacity": 1
+        },
+        {
+          "name": "Update Cycle",
+          "image-name": "UpdateCycle.svg",
+          "glass": true,
+          "hidden": false,
+          "opacity": 1
+        }
+      ],
+      "lighting": "individual",
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.18
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": false,
+        "value": 0
+      },
+      "blur-material": null,
+      "refractivity": {
+        "depth": 0.08,
+        "enabled": true,
+        "strength": 0.35
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": "shared"
+  },
+  "features": [
+    "refractivity"
+  ]
+}
