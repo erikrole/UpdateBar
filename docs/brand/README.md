@@ -1,4 +1,6 @@
-# UpdateBar app icon
+# Refresh app icon
+
+Follow the [shared family design language](FAMILY.md): simple dimensional objects, consistent materials and lighting, individual color fields. The existing layered artwork is the family baseline. The source filename stays stable when the display name changes.
 
 `UpdateBar.icon` is the editable Icon Composer source. Separate SVG layers hold
 the circular update arrow and four app tiles. Light mode uses a solid green

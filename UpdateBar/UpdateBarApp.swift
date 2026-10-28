@@ -37,7 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         observeStore()
         store.start()
         SelfUpdate.busyReason = { [weak self] in
-            self?.store.runningActions.isEmpty == false ? "Wait for app and tool updates to finish before updating UpdateBar." : nil
+            self?.store.runningActions.isEmpty == false ? "Wait for app and tool updates to finish before updating Refresh." : nil
         }
         SelfUpdate.checkOnLaunch()
     }
@@ -124,7 +124,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func updateStatusItem() {
         guard let button = statusItem?.button else { return }
         let count = store.pendingCount
-        let summary = "UpdateBar: \(store.statusSummary)"
+        let summary = "Refresh: \(store.statusSummary)"
         let symbol = count == 0 ? "arrow.down.app" : "arrow.down.app.fill"
         let image = NSImage(systemSymbolName: symbol, accessibilityDescription: summary)?
             .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 14, weight: .medium))

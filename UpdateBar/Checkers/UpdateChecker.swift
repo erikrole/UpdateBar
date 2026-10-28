@@ -386,7 +386,7 @@ struct HTTPClient: Sendable {
 
         var errorDescription: String? {
             switch self {
-            case .insecure: "Its update feed uses plain HTTP, which UpdateBar won't trust."
+            case .insecure: "Its update feed uses plain HTTP, which Refresh won't trust."
             case let .status(code): "The server answered \(code)."
             }
         }

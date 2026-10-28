@@ -95,7 +95,7 @@ struct UpdateBarView: View {
                 .controlSize(.small)
                 .foregroundStyle(.secondary)
                 .disabled(!store.runningActions.isEmpty)
-                .help(store.runningActions.isEmpty ? "Quit UpdateBar" : "Wait for the current update to finish")
+                .help(store.runningActions.isEmpty ? "Quit Refresh" : "Wait for the current update to finish")
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
@@ -513,9 +513,9 @@ private struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Section("UpdateBar") {
-                Toggle("Update UpdateBar automatically", isOn: $autoUpdate)
-                Button("Check for UpdateBar Updates…") { SelfUpdate.checkNow() }
+            Section("Refresh") {
+                Toggle("Update Refresh automatically", isOn: $autoUpdate)
+                Button("Check for Refresh Updates…") { SelfUpdate.checkNow() }
             }
 
             Section("Ignored apps") {

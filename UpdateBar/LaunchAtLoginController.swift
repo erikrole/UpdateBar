@@ -66,13 +66,13 @@ final class LaunchAtLoginController {
             return
         }
         if status == .requiresApproval {
-            errorMessage = "UpdateBar needs approval in Login Items."
+            errorMessage = "Refresh needs approval in Login Items."
             return
         }
         do {
             try service.register()
             refresh()
-            errorMessage = status == .enabled ? nil : "UpdateBar needs approval in Login Items."
+            errorMessage = status == .enabled ? nil : "Refresh needs approval in Login Items."
         } catch {
             refresh()
             errorMessage = error.localizedDescription

@@ -364,6 +364,16 @@ final class HomebrewTests: XCTestCase {
 }
 
 final class GitHubTests: XCTestCase {
+    func testRenamedFamilyKeepsExistingUpdateRepositories() {
+        for (identity, displayName) in [("SnipBar", "Expand"), ("StatBar", "Monitor"),
+                                         ("TVBar", "Remote"), ("UpdateBar", "Refresh")] {
+            let renamed = app("com.erole.\(identity)", name: displayName, short: "1.0")
+            XCTAssertEqual(GitHubChecker.repositories(for: renamed, overrides: [:]),
+                           ["erikrole/\(identity)", "erikrole/\(identity.lowercased())-releases"],
+                           "\(displayName) must keep the installed app's update route")
+        }
+    }
+
     func testAutomaticRepositoryForOwnApps() {
         XCTAssertEqual(GitHubChecker.repository(for: app("com.erole.PowerBar", short: "0.1.0"), overrides: [:]), "erikrole/PowerBar")
         XCTAssertNil(GitHubChecker.repository(for: app("com.other.App", short: "1"), overrides: [:]))

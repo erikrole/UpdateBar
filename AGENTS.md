@@ -1,8 +1,10 @@
-# UpdateBar development
+# Refresh development
+
+Public app name: **Refresh** (formerly UpdateBar). Follow [the shared family design language](docs/brand/FAMILY.md). Keep `UpdateBar` technical identifiers, storage, updater routing and package filenames stable; use Refresh in user-facing copy.
 
 Native Swift 6 macOS 27+ menu bar app. `project.yml` is the XcodeGen source of
 truth; regenerate the checked-in project after adding/removing Swift files.
-Sparkle is pinned to 2.10.0. No repository-specific visual design system exists;
+Sparkle is pinned to 2.10.0. Follow `docs/brand/FAMILY.md` for the shared native design language;
 preserve the current compact AppKit popover and SwiftUI components.
 
 - Build/run: `./script/build_and_run.sh --verify`. This stops UpdateBar first;

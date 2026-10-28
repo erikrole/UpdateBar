@@ -28,7 +28,7 @@ enum DMGInstaller {
             guard !destination.path.contains("/AppTranslocation/"),
                   (try? destination.deletingLastPathComponent().resourceValues(forKeys: [.volumeIsReadOnlyKey]))?.volumeIsReadOnly != true,
                   fm.isWritableFile(atPath: destination.deletingLastPathComponent().path)
-            else { throw Failure(message: "\(name) is somewhere UpdateBar can't change. Move it to Applications first.") }
+            else { throw Failure(message: "\(name) is somewhere Refresh can't change. Move it to Applications first.") }
 
             // An interrupted earlier update can leave a staging copy or backup beside the app.
             let folder = destination.deletingLastPathComponent()
@@ -38,7 +38,7 @@ enum DMGInstaller {
             }
             // Own releases pass our Team ID; anything else must be signed by whoever signed the app now installed.
             guard let teamID = expectedTeamID ?? installedTeamID(of: destination) else {
-                throw Failure(message: "\(name) isn't signed by a developer team, so UpdateBar can't verify an update for it.")
+                throw Failure(message: "\(name) isn't signed by a developer team, so Refresh can't verify an update for it.")
             }
             guard url.scheme == "https" else { throw Failure(message: "The download isn't served over https.") }
 

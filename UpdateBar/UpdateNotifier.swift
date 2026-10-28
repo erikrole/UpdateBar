@@ -26,10 +26,10 @@ enum UpdateNotifier {
         let content = UNMutableNotificationContent()
         if fresh.count == 1, freshTools.isEmpty, let row = fresh.first {
             content.title = "\(row.app.name) \(row.update.version) is available"
-            content.body = "You have \(row.app.displayVersion). Open UpdateBar to update."
+            content.body = "You have \(row.app.displayVersion). Open Refresh to update."
         } else if fresh.isEmpty, freshTools.count == 1, let tool = freshTools.first {
             content.title = "\(tool.name) \(tool.latestVersion) is available"
-            content.body = "You have \(tool.installedVersion). Open UpdateBar to upgrade."
+            content.body = "You have \(tool.installedVersion). Open Refresh to upgrade."
         } else {
             content.title = "\(freshCount) updates available"
             let names = fresh.map(\.app.name) + freshTools.map(\.name)

@@ -1,4 +1,6 @@
-# UpdateBar roadmap
+# Refresh roadmap
+
+- October 28: adopted **Refresh** as the display name, with the shared [Mac utility design language](docs/brand/FAMILY.md). Existing technical identities and update feeds remain compatible. Source validation and distribution boundaries: [rename verification](docs/verification-2026-10-28-naming.md).
 
 Current focus: installer lifecycle and clear completion states. The 2026-10-23
 pass separates package handoff from completed updates, excludes interactive packages

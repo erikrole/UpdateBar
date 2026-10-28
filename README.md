@@ -1,6 +1,13 @@
-# UpdateBar
+# Refresh
 
-UpdateBar is a native macOS menu bar utility that tells you which of your apps
+Formerly **UpdateBar**. Part of the **Expand · Monitor · Remote · Refresh** Mac utility family.
+See the [shared design language](docs/brand/FAMILY.md) for naming, icons and native UI conventions.
+
+The display name is **Refresh**. The `UpdateBar` repository, Xcode target, bundle ID,
+app filename and update assets retain their existing identities for compatibility.
+This source change has not yet been distributed as a renamed release.
+
+Refresh is a native macOS menu bar utility that tells you which of your apps
 have updates and gets you to them in one click. It is a from-scratch take on
 the idea behind [Latest](https://github.com/mangerlahn/Latest); no Latest code
 is used.
@@ -43,7 +50,7 @@ A failed update stays on that row and does not cancel the rest of Update all.
 A Homebrew run that stops midway keeps what it already upgraded and says how
 many were left. If brew needs a password, the message includes the Terminal
 command to run. A source that could not be checked is listed as a failure, and
-UpdateBar does not call that a clean bill of health.
+Refresh does not call that a clean bill of health.
 
 Out of scope on purpose: a root install helper and Apple's private App Store
 frameworks. Feeds that only work over plain HTTP are reported, not trusted.
@@ -61,7 +68,7 @@ xcodegen generate
 ./script/build_and_run.sh --verify
 ```
 
-The Codex Run action uses the same script. It quits the running UpdateBar, builds
+The Codex Run action uses the same script. It quits the running Refresh, builds
 into `build/dd`, and launches that local build. Run it when no app/tool installation
 is active. Optional `--debug`, `--logs`, and `--telemetry` modes support diagnosis.
 It does not replace your installed copy or produce a notarized release.
@@ -117,12 +124,12 @@ See [`docs/releasing.md`](docs/releasing.md).
 
 ## License
 
-UpdateBar is released under the MIT License.
+Refresh is released under the MIT License.
 
 ## App updates
 
-AppUpdater checks [erikrole/UpdateBar](https://github.com/erikrole/UpdateBar/releases) for signed ZIP releases. Normal Release launches check automatically; tests and helper/command launches skip automatic checks. Use **Check for UpdateBar Updates…** in Settings > UpdateBar.
+AppUpdater checks [erikrole/UpdateBar](https://github.com/erikrole/UpdateBar/releases) for signed ZIP releases. Normal Release launches check automatically; tests and helper/command launches skip automatic checks. Use **Check for Refresh Updates…** in Settings > Refresh.
 
-`project.yml` pins the public [AppUpdater](https://github.com/erikrole/AppUpdater) package to `5b5a9411078b79ad92e36bf9d965ecd94b66b420`; rerun XcodeGen after changing the pin. Keep package resolution checked in. App and package targets require **macOS 27**. The host retains its save and busy checks during updater relaunch; no forced-exit fallback is configured.
+`project.yml` pins the public [AppUpdater](https://github.com/erikrole/AppUpdater) package to `9ada219929d278da23a003382ed599d4590f78ec`; rerun XcodeGen after changing the pin. Keep package resolution checked in. App and package targets require **macOS 27**. The host retains its save and busy checks during updater relaunch; no forced-exit fallback is configured.
 
 Published on October 23, 2026 as [UpdateBar 0.1.3](https://github.com/erikrole/UpdateBar/releases/tag/v0.1.3), build 5, from source `5675bd0287983d492af9548a4a1cadf39ed0556e`. The Apple Silicon ZIP requires macOS 27 or later and is Developer ID signed, notarized, and stapled. A SHA-256 checksum and provenance manifest are attached to the release.

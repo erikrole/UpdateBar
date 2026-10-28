@@ -12,7 +12,7 @@ enum PKGInstaller {
 
     struct Failure: Error { let message: String }
 
-    static let openedNotice = "Opened in Installer. Finish there, then UpdateBar will pick up the new version."
+    static let openedNotice = "Opened in Installer. Finish there, then Refresh will pick up the new version."
 
     /// Where verified packages wait for Installer to read them. Swept at launch.
     static var stagingDirectory: URL {
@@ -63,7 +63,7 @@ enum PKGInstaller {
         var staged: URL?
         do {
             guard let teamID = DMGInstaller.installedTeamID(of: app.url) else {
-                throw Failure(message: "\(name) isn't signed by a developer team, so UpdateBar can't verify an update for it.")
+                throw Failure(message: "\(name) isn't signed by a developer team, so Refresh can't verify an update for it.")
             }
             guard url.scheme == "https" else { throw Failure(message: "The download isn't served over https.") }
 
