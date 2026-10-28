@@ -5,7 +5,8 @@ See the [shared design language](docs/brand/FAMILY.md) for naming, icons and nat
 
 The display name is **Refresh**. The `UpdateBar` repository, Xcode target, bundle ID,
 app filename and update assets retain their existing identities for compatibility.
-This source change has not yet been distributed as a renamed release.
+The renamed build was installed locally on October 28, 2026. A renamed public
+release has not been published. See [installation checks](docs/verification-2026-10-28-naming.md).
 
 Refresh is a native macOS menu bar utility that tells you which of your apps
 have updates and gets you to them in one click. It is a from-scratch take on
