@@ -23,6 +23,7 @@
 		6B3926731703FCC9B2C70562 /* BackgroundCheckScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 999BB7684260B99E9E83F232 /* BackgroundCheckScheduler.swift */; };
 		6C0F9F8A24CBEDB2BE6A17F5 /* BrewRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56E3C06A7F03F00F98D51AD2 /* BrewRunner.swift */; };
 		7713F5C1C6698DE268AB7D74 /* AppScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC5490F5D1A4740AD7E4C9F5 /* AppScanner.swift */; };
+		7C555B6E94C4A2B753C9C722 /* RefreshSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A87BB4444F0EB4C74CC0F73C /* RefreshSettingsView.swift */; };
 		7D45898A07738FCB87203CFA /* UpdateStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F9FB943E6B1097D9891CC29 /* UpdateStore.swift */; };
 		82552BD5B21F5C03EBC3F02F /* FormulaChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5EE2514B9F5ED815B8D6C97B /* FormulaChecker.swift */; };
 		845AE8A2CA5432444655A9CA /* UpdateCheckCycle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6661A26E4C0FEC177A36E6D /* UpdateCheckCycle.swift */; };
@@ -39,6 +40,7 @@
 		E09CCAC4696D948B2B51ABE5 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = DB8225BE54B9D3C33C3FAFC8 /* Sparkle */; };
 		E2A5852F2016B67F7F1EB3B3 /* IndexCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DA38C0307FF8C255BD33091 /* IndexCache.swift */; };
 		E4323703FF706CAF2AA431B8 /* HomebrewChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F0E409103E781AFF9B31C3F /* HomebrewChecker.swift */; };
+		EDCE7B0C8C7BC458A092C2A4 /* FamilyHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DB06D774F4CC3A3F20224A /* FamilyHeader.swift */; };
 		F8D2F4DAECFB2715FDBC3DC8 /* GitHubChecker.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE61661C3E0639E4013F054 /* GitHubChecker.swift */; };
 		F91A72F5E9BA11B33F53F0D7 /* VersionComparatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC283181845BE799B947F3CF /* VersionComparatorTests.swift */; };
 /* End PBXBuildFile section */
@@ -80,9 +82,11 @@
 		A2A557F21BFBD77F3336ECAA /* AuditRegressionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditRegressionTests.swift; sourceTree = "<group>"; };
 		A524B9E8B2059D0E778E4F18 /* UpdateBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateBarApp.swift; sourceTree = "<group>"; };
 		A6661A26E4C0FEC177A36E6D /* UpdateCheckCycle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateCheckCycle.swift; sourceTree = "<group>"; };
+		A87BB4444F0EB4C74CC0F73C /* RefreshSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RefreshSettingsView.swift; sourceTree = "<group>"; };
 		AC5490F5D1A4740AD7E4C9F5 /* AppScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppScanner.swift; sourceTree = "<group>"; };
 		B12725A5806047291F2D99DE /* DMGInstallerLiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DMGInstallerLiveTests.swift; sourceTree = "<group>"; };
 		BD8D272453B3FE46C34D2899 /* VersionComparator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionComparator.swift; sourceTree = "<group>"; };
+		C0DB06D774F4CC3A3F20224A /* FamilyHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FamilyHeader.swift; sourceTree = "<group>"; };
 		C42B5DD1E98B6862FADDF21A /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		C74D674E6BED3502B6384FEC /* UpdateBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateBarView.swift; sourceTree = "<group>"; };
 		DC283181845BE799B947F3CF /* VersionComparatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VersionComparatorTests.swift; sourceTree = "<group>"; };
@@ -167,10 +171,12 @@
 				8529FB7C8EE54F21E4A1F432 /* BrewProgress.swift */,
 				56E3C06A7F03F00F98D51AD2 /* BrewRunner.swift */,
 				0B8AACD36FFE219F74234407 /* DMGInstaller.swift */,
+				C0DB06D774F4CC3A3F20224A /* FamilyHeader.swift */,
 				C42B5DD1E98B6862FADDF21A /* Info.plist */,
 				734BE46E1EBD1A2D47AB2781 /* LaunchAtLoginController.swift */,
 				422767A185DF56A59314595D /* Models.swift */,
 				DEBA8829BA9EE858A5B10E39 /* PKGInstaller.swift */,
+				A87BB4444F0EB4C74CC0F73C /* RefreshSettingsView.swift */,
 				5EC1AC0E67191B83DB9BF0EE /* SelfUpdate.swift */,
 				17F08557CC0A48FFA69C5E67 /* SparkleInstaller.swift */,
 				065EAA53ACB8DB4F3B9F1286 /* ToolUpgradeActions.swift */,
@@ -305,6 +311,7 @@
 				658CA0C00845D7D8F13E834A /* BrewProgress.swift in Sources */,
 				6C0F9F8A24CBEDB2BE6A17F5 /* BrewRunner.swift in Sources */,
 				0CD780D83793AAC1A17AEF8E /* DMGInstaller.swift in Sources */,
+				EDCE7B0C8C7BC458A092C2A4 /* FamilyHeader.swift in Sources */,
 				82552BD5B21F5C03EBC3F02F /* FormulaChecker.swift in Sources */,
 				F8D2F4DAECFB2715FDBC3DC8 /* GitHubChecker.swift in Sources */,
 				E4323703FF706CAF2AA431B8 /* HomebrewChecker.swift in Sources */,
@@ -312,6 +319,7 @@
 				868E1AED293E6AB1424EFC2C /* LaunchAtLoginController.swift in Sources */,
 				AB920BADF055526840251AA1 /* Models.swift in Sources */,
 				04155D010051AA3A1FBEBAD6 /* PKGInstaller.swift in Sources */,
+				7C555B6E94C4A2B753C9C722 /* RefreshSettingsView.swift in Sources */,
 				452743E1045AE5EBB5EA7556 /* SelfUpdate.swift in Sources */,
 				502EC85786F01CBC8C60DE03 /* SparkleChecker.swift in Sources */,
 				D7FB5B02346D5AA88FC3E556 /* SparkleInstaller.swift in Sources */,
@@ -346,7 +354,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -531,7 +539,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 7;
+				CURRENT_PROJECT_VERSION = 8;
 				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;

@@ -90,7 +90,26 @@ defaults, data paths and release ZIP names stable. `CFBundleDisplayName` and
 `CFBundleName` carry the new public identity. The widget extension uses Remote
 as its display name. Existing users should retain their data and update route.
 
-This is an adopted design specification and a display-name implementation, not a
-claim that every existing view has been redesigned. Apply the rules as individual
-surfaces are revised. A release needs its own signed-build, installed-name,
-permissions/Login Items, widget registration and update/relaunch acceptance.
+## Implemented interface conventions
+
+The October 28 interface pass applies this language to the four shipping apps.
+`FamilyHeader.swift` is intentionally identical in all four source directories:
+a 32-point application icon, a semibold title3 name, and a secondary caption with
+an optional status symbol. Its icon is decorative for accessibility; the name
+and status are read together. Keep this small view in sync without adding a shared
+runtime dependency.
+
+App-owned panel headers and footers use 16-point horizontal and 12-point vertical
+insets. Prefer flat rows and dividers, small native utility controls, grouped
+Settings forms and explicit status text. Expand applies the same rhythm to its
+editor, setup and save-recovery surfaces. Monitor preserves metric colors and
+native disclosures. Remote adapts the rules to WidgetKit with neutral controls
+and outlined selection. Refresh uses a separate native Settings window with the
+standard Command-comma shortcut. Native form and widget spacing take precedence
+over forcing every surface into the same geometry.
+
+The signed builds are installed locally for feedback. This is not a new public
+binary release. See each repository's `docs/verification-2026-10-28-family-ui.md`
+for actual test and native-review coverage. Permissions/Login Items changes,
+live TV actions, real update installers and updater/relaunch acceptance are
+separate from a design review.

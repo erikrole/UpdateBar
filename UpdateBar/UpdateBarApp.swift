@@ -7,15 +7,15 @@ struct UpdateBarApp: App {
 
     var body: some Scene {
         Settings {
-            EmptyView()
+            RefreshSettingsView(store: appDelegate.store, launchAtLogin: appDelegate.launchAtLogin)
         }
     }
 }
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let store = UpdateStore()
-    private let launchAtLogin = LaunchAtLoginController()
+    let store = UpdateStore()
+    let launchAtLogin = LaunchAtLoginController()
     private let popover = NSPopover()
     private var statusItem: NSStatusItem?
     private var outsideClickMonitor: Any?
@@ -83,7 +83,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         popover.animates = true
         popover.contentSize = NSSize(width: 380, height: 520)
         popover.contentViewController = NSHostingController(
-            rootView: UpdateBarView(store: store, launchAtLogin: launchAtLogin)
+            rootView: UpdateBarView(store: store)
         )
         NotificationCenter.default.addObserver(
             self,

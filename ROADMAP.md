@@ -1,5 +1,7 @@
 # Refresh roadmap
 
+- October 28 interface pass: **0.1.5 (8)** is installed locally with the shared family UI. A shared identity/status header, consistent flat rows and footer, clearer empty/failure states, and Reduced Motion-aware progress. Settings now opens in a native SwiftUI Settings window with the same store and login controller. [Verification](docs/verification-2026-10-28-family-ui.md). No public binary release was published.
+
 - October 28: adopted **Refresh** as the display name, with the shared [Mac utility design language](docs/brand/FAMILY.md). Existing technical identities and update feeds remain compatible. The signed renamed build is now installed locally. Source validation, installation checks and distribution boundaries: [rename verification](docs/verification-2026-10-28-naming.md).
 
 Current focus: installer lifecycle and clear completion states. The 2026-10-23

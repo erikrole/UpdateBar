@@ -2,6 +2,8 @@
 
 Public app name: **Refresh** (formerly UpdateBar). Follow [the shared family design language](docs/brand/FAMILY.md). Keep `UpdateBar` technical identifiers, storage, updater routing and package filenames stable; use Refresh in user-facing copy.
 
+Interface convention: `UpdateBar/FamilyHeader.swift` is mirrored across all four utility repos. RefreshSettingsView is hosted by the SwiftUI Settings scene. The AppKit popover calls the environment openSettings action; retain the shared store/controller and Command-comma routing. Never restore a duplicate inline Settings screen.
+
 Native Swift 6 macOS 27+ menu bar app. `project.yml` is the XcodeGen source of
 truth; regenerate the checked-in project after adding/removing Swift files.
 Sparkle is pinned to 2.10.0. Follow `docs/brand/FAMILY.md` for the shared native design language;

@@ -3,6 +3,10 @@
 Formerly **UpdateBar**. Part of the **Expand · Monitor · Remote · Refresh** Mac utility family.
 See the [shared design language](docs/brand/FAMILY.md) for naming, icons and native UI conventions.
 
+The shared interface is implemented and installed locally as **0.1.5 (8)**.
+See [interface and installation verification](docs/verification-2026-10-28-family-ui.md)
+for the changed surfaces, native checks and release boundaries.
+
 The display name is **Refresh**. The `UpdateBar` repository, Xcode target, bundle ID,
 app filename and update assets retain their existing identities for compatibility.
 The renamed build was installed locally on October 28, 2026. A renamed public

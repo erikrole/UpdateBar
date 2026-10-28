@@ -3,19 +3,15 @@ import SwiftUI
 
 struct UpdateBarView: View {
     @Bindable var store: UpdateStore
-    @Bindable var launchAtLogin: LaunchAtLoginController
     @State private var expanded: String?
-    @State private var showingSettings = false
+    @Environment(\.openSettings) private var openSettings
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(spacing: 0) {
             header
             Divider()
-            if showingSettings {
-                SettingsView(store: store, launchAtLogin: launchAtLogin)
-            } else {
-                content
-            }
+            content
             Divider()
             footer
         }
@@ -25,80 +21,77 @@ struct UpdateBarView: View {
     // MARK: - Header and footer
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(showingSettings ? "Settings" : headline)
-                    .font(.headline)
-                Text(subheadline)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if let banner = store.banner, !showingSettings {
-                    Text(banner.text)
-                        .font(.caption)
-                        .foregroundStyle(banner.isWarning ? Color.primary : Color.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 4)
-                }
-            }
-            Spacer(minLength: 12)
-            HStack(spacing: 8) {
-                if store.isChecking {
-                    ProgressView().controlSize(.small)
-                }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 12) {
+                FamilyHeader(title: "Refresh", subtitle: store.statusSummary,
+                             statusSymbol: statusSymbol, statusColor: store.failures.isEmpty ? .secondary : .orange)
                 Button {
                     Task { await store.checkNow() }
                 } label: {
-                    Image(systemName: "arrow.clockwise")
+                    if store.isChecking {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: "arrow.clockwise")
+                    }
                 }
-                .buttonStyle(.borderless)
+                .controlSize(.small)
                 .disabled(store.isChecking)
-                .help("Check now")
-                .accessibilityLabel("Check now")
+                .help("Check for updates (⌘R)")
+                .accessibilityLabel("Check for updates")
                 .keyboardShortcut("r", modifiers: .command)
-
-                Button {
-                    showingSettings.toggle()
-                } label: {
-                    Image(systemName: showingSettings ? "xmark" : "gearshape")
-                }
-                .buttonStyle(.borderless)
-                .help(showingSettings ? "Close settings" : "Settings")
-                .accessibilityLabel(showingSettings ? "Close settings" : "Settings")
             }
-            .padding(.top, 2)
+            if let banner = store.banner {
+                Label(banner.text, systemImage: banner.isWarning ? "exclamationmark.triangle" : "checkmark.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let lastChecked = store.lastChecked {
+                Text("\(store.appCount) apps scanned · \(lastChecked.formatted(.relative(presentation: .named)))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
     }
 
-    private var headline: String { store.statusSummary }
-
-    private var subheadline: String {
-        guard let lastChecked = store.lastChecked else { return "Scanning your apps…" }
-        let relative = lastChecked.formatted(.relative(presentation: .named))
-        return "\(store.appCount) apps scanned · \(relative)"
+    private var statusSymbol: String {
+        if !store.failures.isEmpty { return "exclamationmark.triangle" }
+        if store.isChecking || !store.runningActions.isEmpty || store.toolRun != nil { return "arrow.triangle.2.circlepath" }
+        return store.pendingCount > 0 ? "arrow.down.circle" : "checkmark.circle"
     }
 
     private var footer: some View {
-        HStack {
-            if store.inPlaceUpdateCount > 1 && !showingSettings {
+        HStack(spacing: 12) {
+            Button {
+                openSettings()
+                NSApp.activate()
+            } label: {
+                Label("Settings…", systemImage: "gearshape")
+            }
+            .buttonStyle(.borderless)
+            .keyboardShortcut(",")
+            Spacer(minLength: 0)
+            if store.inPlaceUpdateCount > 1 {
                 Button("Update all (\(store.inPlaceUpdateCount))") {
                     store.updateAllInPlace()
                 }
-                .controlSize(.small)
+                .buttonStyle(.borderedProminent)
                 .disabled(!store.canInstallUpdates || store.isChecking)
             }
-            Spacer()
             Button("Quit") { NSApp.terminate(nil) }
                 .buttonStyle(.borderless)
-                .controlSize(.small)
                 .foregroundStyle(.secondary)
                 .disabled(!store.runningActions.isEmpty)
                 .help(store.runningActions.isEmpty ? "Quit Refresh" : "Wait for the current update to finish")
+                .keyboardShortcut("q")
         }
+        .controlSize(.small)
+        .font(.caption)
         .padding(.horizontal, 16)
-        .padding(.vertical, 8)
+        .padding(.vertical, 12)
     }
 
     // MARK: - List
@@ -108,7 +101,14 @@ struct UpdateBarView: View {
         if store.rows.isEmpty && store.requestedTools.isEmpty && store.dependencyTools.isEmpty {
             VStack(spacing: 8) {
                 Spacer()
-                Text(store.lastChecked == nil ? "Looking for updates…" : (store.failures.isEmpty ? "No updates right now" : "Check incomplete"))
+                Image(systemName: store.lastChecked == nil ? "arrow.triangle.2.circlepath" : store.failures.isEmpty ? "checkmark.circle" : "exclamationmark.triangle")
+                    .font(.largeTitle)
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+                Text(store.lastChecked == nil ? "Looking for updates…" : (store.failures.isEmpty ? "Up to date" : "Check incomplete"))
+                    .font(.headline)
+                Text(store.failures.isEmpty ? "New updates will appear here." : "Some sources could not be checked.")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
                 if !store.failures.isEmpty {
                     failureDisclosure.padding(.horizontal, 16)
@@ -131,7 +131,7 @@ struct UpdateBarView: View {
                             skip: { store.skip(row) },
                             ignore: { store.ignore(row) }
                         )
-                        Divider().padding(.leading, 56)
+                        Divider().padding(.leading, 60)
                     }
                     if !store.requestedTools.isEmpty || !store.dependencyTools.isEmpty {
                         toolsSection
@@ -150,7 +150,7 @@ struct UpdateBarView: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack {
                 Text("Command-line tools")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.headline)
                 Spacer()
                 if store.toolRun == nil {
                     Button("Upgrade all (\(store.tools.count))") { store.upgradeAllTools() }
@@ -159,21 +159,21 @@ struct UpdateBarView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 6)
+            .padding(.top, 16)
+            .padding(.bottom, 8)
 
             if let run = store.toolRun {
                 VStack(alignment: .leading, spacing: 4) {
                     ProgressView(value: run.fraction)
                         .progressViewStyle(.linear)
-                        .animation(.easeOut(duration: 0.3), value: run.fraction)
+                        .animation(reduceMotion ? nil : .easeOut(duration: 0.3), value: run.fraction)
                     Text(run.summary)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .contentTransition(.numericText())
                 }
                 .padding(.horizontal, 16)
-                .padding(.bottom, 6)
+                .padding(.bottom, 8)
             }
 
             if let message = store.actionMessages[UpdateStore.allToolsID] {
@@ -253,7 +253,7 @@ private struct UpdateRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 AppIcon(app: row.app)
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -296,7 +296,7 @@ private struct UpdateRow: View {
                     .font(.caption)
                     .foregroundStyle(.orange)
                     .textSelection(.enabled)
-                    .padding(.leading, 42)
+                    .padding(.leading, 44)
             }
 
             Button(action: toggle) {
@@ -304,15 +304,15 @@ private struct UpdateRow: View {
             }
             .buttonStyle(.borderless)
             .font(.caption)
-            .padding(.leading, 42)
+            .padding(.leading, 44)
             .accessibilityLabel("\(isExpanded ? "Hide" : "Show") details for \(row.app.name)")
 
             if isExpanded {
-                details.padding(.leading, 42)
+                details.padding(.leading, 44)
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.vertical, 12)
     }
 
     private var versionLine: String {
@@ -378,6 +378,7 @@ private struct UpdateRow: View {
 /// A package's place in a running brew upgrade: waiting, a live spinner with the
 /// current step, or a check mark.
 private struct StageBadge: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let stage: BrewStage
     var compact = false
 
@@ -400,7 +401,7 @@ private struct StageBadge: View {
         }
         .font(.caption)
         .frame(minWidth: compact ? nil : 90, alignment: .trailing)
-        .animation(.easeOut(duration: 0.2), value: stage)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: stage)
     }
 }
 
@@ -420,7 +421,7 @@ private struct ToolRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 10) {
+            HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Group {
                         if tool.isRebuild {
@@ -460,89 +461,6 @@ private struct ToolRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
-    }
-}
-
-private struct SettingsView: View {
-    @AppStorage(SelfUpdate.autoUpdateKey) private var autoUpdate = true
-    @Bindable var store: UpdateStore
-    @Bindable var launchAtLogin: LaunchAtLoginController
-
-    var body: some View {
-        Form {
-            Section {
-                Toggle("Launch at login", isOn: Binding(
-                    get: { launchAtLogin.isEnabled },
-                    set: { launchAtLogin.setEnabled($0) }
-                ))
-                if let error = launchAtLogin.errorMessage {
-                    Text(error).font(.caption).foregroundStyle(.secondary)
-                }
-                Toggle("Notify me about new updates", isOn: $store.notificationsEnabled)
-                Picker("Check every", selection: $store.checkIntervalHours) {
-                    Text("Hour").tag(1)
-                    Text("3 hours").tag(3)
-                    Text("6 hours").tag(6)
-                    Text("12 hours").tag(12)
-                    Text("Day").tag(24)
-                }
-            }
-
-            Section {
-                Toggle("Show Homebrew command-line tools", isOn: $store.showsTools)
-            }
-
-            Section {
-                if store.betaCapableApps.isEmpty {
-                    Text("None of your apps publish betas through their update feed.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(store.betaCapableApps) { app in
-                        Toggle(app.name, isOn: Binding(
-                            get: { store.isBetaEnabled(app.bundleIdentifier) },
-                            set: { store.setBeta($0, for: app.bundleIdentifier) }
-                        ))
-                    }
-                }
-            } header: {
-                Text("Beta updates")
-            } footer: {
-                Text("Apps listed here publish betas through Sparkle. Turn one on to be offered its betas as well as stable releases.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Section("Refresh") {
-                Toggle("Update Refresh automatically", isOn: $autoUpdate)
-                Button("Check for Refresh Updates…") { SelfUpdate.checkNow() }
-            }
-
-            Section("Ignored apps") {
-                if store.ignoredApps.isEmpty {
-                    Text("None. Right-click an update to ignore its app.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(store.ignoredApps.sorted(), id: \.self) { id in
-                        HStack {
-                            Text(store.ignoredAppNames[id] ?? id)
-                            Spacer()
-                            Button("Stop ignoring") { store.unignore(id) }
-                                .buttonStyle(.link)
-                        }
-                    }
-                }
-                if !store.skippedVersions.isEmpty {
-                    Button("Show \(store.skippedVersions.count) skipped versions again") {
-                        store.clearSkippedVersions()
-                    }
-                    .buttonStyle(.link)
-                }
-            }
-        }
-        .formStyle(.grouped)
-        .frame(maxHeight: .infinity)
     }
 }
 
