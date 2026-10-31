@@ -58,6 +58,8 @@ struct RefreshSettingsView: View {
                 Button("Check for Refresh Updates…") { SelfUpdate.checkNow() }
             }
 
+            PreviousVersionsSection()
+
             Section("Ignored apps") {
                 if store.ignoredApps.isEmpty {
                     Text("None. Right-click an update to ignore its app.")
@@ -87,5 +89,61 @@ struct RefreshSettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 480, height: 540)
+    }
+}
+
+/// Apps replaced by an in-place update in the last two weeks, each with a Restore button.
+private struct PreviousVersionsSection: View {
+    @State private var entries: [PreviousVersions.Entry] = []
+    @State private var message: String?
+    @State private var confirming: PreviousVersions.Entry?
+
+    var body: some View {
+        Section {
+            if entries.isEmpty {
+                Text("None. When Refresh replaces an app it downloaded itself, the old copy is kept here for two weeks.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(entries) { entry in
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(entry.name) \(entry.version)")
+                        Text("Replaced \(entry.savedAt.formatted(.relative(presentation: .named)))")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("Restore…") { confirming = entry }
+                        .buttonStyle(.link)
+                }
+            }
+            if let message {
+                Text(message).font(.caption).foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Previous versions")
+        }
+        .onAppear { entries = PreviousVersions.standard.entries() }
+        .confirmationDialog(
+            "Restore \(confirming?.name ?? "") \(confirming?.version ?? "")?",
+            isPresented: Binding(get: { confirming != nil }, set: { if !$0 { confirming = nil } }),
+            presenting: confirming
+        ) { entry in
+            Button("Restore") { restore(entry) }
+        } message: { _ in
+            Text("The current copy is kept here instead, so you can switch back. Some apps can't read settings or documents saved by a newer version.")
+        }
+    }
+
+    private func restore(_ entry: PreviousVersions.Entry) {
+        do {
+            try PreviousVersions.standard.restore(entry)
+            message = "Restored \(entry.name) \(entry.version). It will show as outdated on the next check; skip that version to keep it."
+        } catch let failure as PreviousVersions.Failure {
+            message = failure.message
+        } catch {
+            message = error.localizedDescription
+        }
+        entries = PreviousVersions.standard.entries()
     }
 }
