@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Snooze an update until tomorrow or next week.
+- Optional nightly unattended install for apps that aren't open.
+- Keep the previous copy after an in-place download update for two weeks, with Restore in Settings.
+
 - Clearer messages when a source rate-limits (403/429) or has a server error (5xx).
 
 ## 0.1.5 - 2026-10-27

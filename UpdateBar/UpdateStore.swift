@@ -27,6 +27,15 @@ final class UpdateStore {
     var checkIntervalHours: Int {
         didSet { defaults.set(checkIntervalHours, forKey: Keys.interval); scheduleChecks() }
     }
+    /// Hour (0–23) for the nightly unattended update of apps that aren't open; nil is off.
+    var autoInstallHour: Int? {
+        didSet {
+            defaults.set(autoInstallHour, forKey: Keys.autoInstallHour)
+            scheduleAutoInstall()
+        }
+    }
+    var lastAutoInstall: Date?
+    @ObservationIgnored var autoInstallTask: Task<Void, Never>?
     var notificationsEnabled: Bool {
         didSet {
             defaults.set(notificationsEnabled, forKey: Keys.notifications)
@@ -36,6 +45,8 @@ final class UpdateStore {
     var ignoredApps: Set<String>
     var skippedVersions: [String: String]
     var ignoredAppNames: [String: String]
+    /// Apps whose updates are hidden until a date ("Remind me tomorrow").
+    var snoozedUntil: [String: Date]
     /// Apps opted into pre-release (beta) updates.
     var betaApps: Set<String>
     var showsTools: Bool {
@@ -72,6 +83,8 @@ final class UpdateStore {
         static let ignored = "ignoredApps"
         static let ignoredNames = "ignoredAppNames"
         static let skipped = "skippedVersions"
+        static let snoozed = "snoozedUntil"
+        static let autoInstallHour = "autoInstallHour"
         static let notified = "notifiedUpdateIDs"
         static let repositories = "githubRepositories"
         static let betaApps = "betaApps"
@@ -94,9 +107,12 @@ final class UpdateStore {
         self.backgroundChecks = backgroundChecks
         checkIntervalHours = defaults.object(forKey: Keys.interval) as? Int ?? 6
         notificationsEnabled = defaults.object(forKey: Keys.notifications) as? Bool ?? true
+        autoInstallHour = (defaults.object(forKey: Keys.autoInstallHour) as? Int).flatMap { (0...23).contains($0) ? $0 : nil }
         ignoredApps = Set(defaults.stringArray(forKey: Keys.ignored) ?? [])
         ignoredAppNames = defaults.dictionary(forKey: Keys.ignoredNames) as? [String: String] ?? [:]
         skippedVersions = defaults.dictionary(forKey: Keys.skipped) as? [String: String] ?? [:]
+        snoozedUntil = (defaults.dictionary(forKey: Keys.snoozed) as? [String: Double] ?? [:])
+            .mapValues { Date(timeIntervalSince1970: $0) }
         notifiedUpdateIDs = Set(defaults.stringArray(forKey: Keys.notified) ?? [])
         betaApps = Set(defaults.stringArray(forKey: Keys.betaApps) ?? [])
         showsTools = defaults.object(forKey: Keys.showsTools) as? Bool ?? true
@@ -157,6 +173,7 @@ final class UpdateStore {
     func start() {
         if notificationsEnabled { UpdateNotifier.requestPermission() }
         scheduleChecks()
+        scheduleAutoInstall()
         PKGInstaller.sweepStaging()
         Task { await checkNow() }
     }
@@ -192,6 +209,41 @@ final class UpdateStore {
         ignoredAppNames[bundleIdentifier] = nil
         defaults.set(Array(ignoredApps), forKey: Keys.ignored)
         defaults.set(ignoredAppNames, forKey: Keys.ignoredNames)
+        UpdateCheckCycle.resolve(self)
+    }
+
+    /// Hides this app's update for `days`, then it comes back on the next check.
+    func snooze(_ row: AppUpdate, days: Int, now: Date = Date()) {
+        snoozedUntil[row.app.bundleIdentifier] = now.addingTimeInterval(TimeInterval(days) * 86_400)
+        saveSnoozes()
+        UpdateCheckCycle.resolve(self)
+    }
+
+    /// Apps still snoozed at `now`; expired entries are dropped.
+    func activeSnoozes(now: Date = Date()) -> Set<String> {
+        let active = snoozedUntil.filter { $0.value > now }
+        if active.count != snoozedUntil.count {
+            snoozedUntil = active
+            saveSnoozes()
+        }
+        return Set(active.keys)
+    }
+
+    func clearSnoozes() {
+        snoozedUntil = [:]
+        saveSnoozes()
+        UpdateCheckCycle.resolve(self)
+    }
+
+    private func saveSnoozes() {
+        defaults.set(snoozedUntil.mapValues(\.timeIntervalSince1970), forKey: Keys.snoozed)
+    }
+
+    /// After a restore, skip the version that was swapped out so a later "Update all" or nightly run
+    /// doesn't quietly reinstall it.
+    func skip(version: String, of bundleIdentifier: String) {
+        skippedVersions[bundleIdentifier] = version
+        defaults.set(skippedVersions, forKey: Keys.skipped)
         UpdateCheckCycle.resolve(self)
     }
 

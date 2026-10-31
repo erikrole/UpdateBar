@@ -33,6 +33,8 @@ installed app's own Team ID (`archiveInstall`); .pkg casks (`pkgInstall`) downlo
 Installer, same Team ID) and Gatekeeper, then open the package in Apple's Installer, which asks for the password itself (UpdateBar never
 elevates); packages older than seven days are swept at launch only when Apple’s Installer is not running. Browsers with an update page keep "Open"/a link.
 
+`DMGInstaller` hands the replaced copy to `PreviousVersions` (one per bundle ID, 14 days, `Previous.noindex`) instead of deleting it; restores refuse while the app runs and keep the swapped-out copy. Snoozes (`snoozedUntil`) are resolver exclusions that expire on their own. `ScheduledInstall` runs the daily unattended batch through `AppUpdateActions.install`, only for `installsInPlace` rows whose app isn't running, and skips a run more than two hours late.
+
 Tests must use isolated defaults and fixture network responses. Never invoke
 `--install`, Homebrew upgrades, or real Sparkle installs merely to test the app.
 Do not commit cached indexes, application inventories, live reports, generated

@@ -10,12 +10,13 @@ enum UpdateResolver {
         apps: [InstalledApp],
         result: CheckerResult,
         ignoredApps: Set<String>,
-        skippedVersions: [String: String]
+        skippedVersions: [String: String],
+        snoozedApps: Set<String> = []
     ) -> [AppUpdate] {
         let updatesByApp = Dictionary(grouping: result.updates, by: \.bundleIdentifier)
         var rows: [AppUpdate] = []
 
-        for app in apps where !ignoredApps.contains(app.bundleIdentifier) {
+        for app in apps where !ignoredApps.contains(app.bundleIdentifier) && !snoozedApps.contains(app.bundleIdentifier) {
             guard let updates = updatesByApp[app.bundleIdentifier], !updates.isEmpty else { continue }
             let sorted = updates.sorted { $0.source < $1.source }
 

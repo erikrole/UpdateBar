@@ -119,7 +119,8 @@ enum DMGInstaller {
                     throw Failure(message: "\(name) updated but wouldn't open, so the previous version was restored.")
                 }
             }
-            try? fm.removeItem(at: backup)
+            // Keep the replaced copy for two weeks so it can be restored from Settings.
+            PreviousVersions.standard.keep(backup, for: app)
             return .installed
         } catch let failure as Failure {
             if let staged { try? fm.removeItem(at: staged) }

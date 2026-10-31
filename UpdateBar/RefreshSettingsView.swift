@@ -1,6 +1,11 @@
 import SwiftUI
 
 struct RefreshSettingsView: View {
+    static func hourLabel(_ hour: Int) -> String {
+        let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: Date()) ?? Date()
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+
     @AppStorage(SelfUpdate.autoUpdateKey) private var autoUpdate = true
     @Bindable var store: UpdateStore
     @Bindable var launchAtLogin: LaunchAtLoginController
@@ -25,6 +30,20 @@ struct RefreshSettingsView: View {
                     Text("6 hours").tag(6)
                     Text("12 hours").tag(12)
                     Text("Day").tag(24)
+                }
+                Picker("Install updates automatically", selection: $store.autoInstallHour) {
+                    Text("Never").tag(Int?.none)
+                    ForEach([0, 1, 2, 3, 4, 5, 6, 12, 18, 22, 23], id: \.self) { hour in
+                        Text("Daily at \(Self.hourLabel(hour))").tag(Int?.some(hour))
+                    }
+                }
+                if store.autoInstallHour != nil {
+                    Text("Installs updates Refresh can finish on its own (Homebrew, Sparkle and verified downloads) for apps that aren’t open. Open apps and installer packages wait for you. If your Mac is asleep, it waits for the next day.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if let last = store.lastAutoInstall {
+                        Text("Last ran \(last.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                 }
             }
 
@@ -58,6 +77,8 @@ struct RefreshSettingsView: View {
                 Button("Check for Refresh Updates…") { SelfUpdate.checkNow() }
             }
 
+            PreviousVersionsSection(store: store)
+
             Section("Ignored apps") {
                 if store.ignoredApps.isEmpty {
                     Text("None. Right-click an update to ignore its app.")
@@ -73,6 +94,10 @@ struct RefreshSettingsView: View {
                         }
                     }
                 }
+                if !store.snoozedUntil.isEmpty {
+                    Button("Show \(store.snoozedUntil.count) snoozed updates now") { store.clearSnoozes() }
+                        .buttonStyle(.link)
+                }
                 if !store.skippedVersions.isEmpty {
                     Button("Show \(store.skippedVersions.count) skipped versions again") {
                         store.clearSkippedVersions()
@@ -83,5 +108,66 @@ struct RefreshSettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 480, height: 540)
+    }
+}
+
+/// Apps replaced by an in-place update in the last two weeks, each with a Restore button.
+private struct PreviousVersionsSection: View {
+    let store: UpdateStore
+    @State private var entries: [PreviousVersions.Entry] = []
+    @State private var message: String?
+    @State private var confirming: PreviousVersions.Entry?
+
+    var body: some View {
+        Section {
+            if entries.isEmpty {
+                Text("None. When Refresh replaces an app it downloaded itself, the old copy is kept here for two weeks.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(entries) { entry in
+                HStack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(entry.name) \(entry.version)")
+                        Text("Replaced \(entry.savedAt.formatted(.relative(presentation: .named)))")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    Button("Restore…") { confirming = entry }
+                        .buttonStyle(.link)
+                }
+            }
+            if let message {
+                Text(message).font(.caption).foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Previous versions")
+        }
+        .onAppear { entries = PreviousVersions.standard.entries() }
+        .confirmationDialog(
+            "Restore \(confirming?.name ?? "") \(confirming?.version ?? "")?",
+            isPresented: Binding(get: { confirming != nil }, set: { if !$0 { confirming = nil } }),
+            presenting: confirming
+        ) { entry in
+            Button("Restore") { restore(entry) }
+        } message: { _ in
+            Text("The current copy is kept here instead, so you can switch back. Some apps can't read settings or documents saved by a newer version.")
+        }
+    }
+
+    private func restore(_ entry: PreviousVersions.Entry) {
+        do {
+            if let replaced = try PreviousVersions.standard.restore(entry) {
+                store.skip(version: replaced, of: entry.bundleIdentifier)
+                message = "Restored \(entry.name) \(entry.version). Version \(replaced) is skipped so it isn't reinstalled; Show skipped versions again undoes that."
+            } else {
+                message = "Restored \(entry.name) \(entry.version)."
+            }
+        } catch let failure as PreviousVersions.Failure {
+            message = failure.message
+        } catch {
+            message = error.localizedDescription
+        }
+        entries = PreviousVersions.standard.entries()
     }
 }

@@ -28,7 +28,9 @@ is used.
   The full order is in [source precedence](design-plans/source-precedence.md).
 - Compares against the version actually on disk, so apps that updated themselves
   aren't flagged the way `brew outdated --greedy` flags them.
-- Shows release notes inline, and lets you skip a version or ignore an app.
+- Shows release notes inline, and lets you skip a version, snooze an update (tomorrow or next week), or ignore an app.
+- Optional nightly install (Settings > General > Install updates automatically): at the chosen hour Refresh checks, then installs in-place updates (Homebrew, Sparkle, verified downloads) for apps that aren't open. Open apps and installer packages wait; a run more than two hours late (Mac asleep) waits for the next day.
+- When Refresh replaces an app from a verified download, the old copy is kept for two weeks in `~/Library/Application Support/UpdateBar/Previous.noindex`. Settings > Previous versions restores it (quit the app first); the copy it replaces is kept in turn, so you can switch back.
 - Lists outdated Homebrew command-line tools (formulae) in their own section,
   matching `brew outdated`, with per-tool Upgrade and an Upgrade all that covers
   dependencies too. Pinned formulae and HEAD builds are left alone, and rebuilds
