@@ -36,7 +36,7 @@ final class PreviousVersionsTests: XCTestCase {
         XCTAssertThrowsError(try store.restore(entry, isRunning: { _ in true })) {
             XCTAssertEqual($0 as? PreviousVersions.Failure, .init(message: "Quit Viewer, then restore it."))
         }
-        try store.restore(entry, isRunning: { _ in false })
+        XCTAssertEqual(try store.restore(entry, isRunning: { _ in false }), "2.0", "the caller skips the swapped-out version")
         XCTAssertEqual(Bundle(url: installed)?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String, "1.0")
         XCTAssertEqual(store.entries().first?.version, "2.0", "the replaced copy is kept so the restore can be undone")
     }

@@ -239,6 +239,14 @@ final class UpdateStore {
         defaults.set(snoozedUntil.mapValues(\.timeIntervalSince1970), forKey: Keys.snoozed)
     }
 
+    /// After a restore, skip the version that was swapped out so a later "Update all" or nightly run
+    /// doesn't quietly reinstall it.
+    func skip(version: String, of bundleIdentifier: String) {
+        skippedVersions[bundleIdentifier] = version
+        defaults.set(skippedVersions, forKey: Keys.skipped)
+        UpdateCheckCycle.resolve(self)
+    }
+
     func clearSkippedVersions() {
         skippedVersions = [:]
         defaults.set(skippedVersions, forKey: Keys.skipped)

@@ -77,7 +77,7 @@ struct RefreshSettingsView: View {
                 Button("Check for Refresh Updates…") { SelfUpdate.checkNow() }
             }
 
-            PreviousVersionsSection()
+            PreviousVersionsSection(store: store)
 
             Section("Ignored apps") {
                 if store.ignoredApps.isEmpty {
@@ -113,6 +113,7 @@ struct RefreshSettingsView: View {
 
 /// Apps replaced by an in-place update in the last two weeks, each with a Restore button.
 private struct PreviousVersionsSection: View {
+    let store: UpdateStore
     @State private var entries: [PreviousVersions.Entry] = []
     @State private var message: String?
     @State private var confirming: PreviousVersions.Entry?
@@ -156,8 +157,12 @@ private struct PreviousVersionsSection: View {
 
     private func restore(_ entry: PreviousVersions.Entry) {
         do {
-            try PreviousVersions.standard.restore(entry)
-            message = "Restored \(entry.name) \(entry.version). It will show as outdated on the next check; skip that version to keep it."
+            if let replaced = try PreviousVersions.standard.restore(entry) {
+                store.skip(version: replaced, of: entry.bundleIdentifier)
+                message = "Restored \(entry.name) \(entry.version). Version \(replaced) is skipped so it isn't reinstalled; Show skipped versions again undoes that."
+            } else {
+                message = "Restored \(entry.name) \(entry.version)."
+            }
         } catch let failure as PreviousVersions.Failure {
             message = failure.message
         } catch {

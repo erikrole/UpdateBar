@@ -78,7 +78,9 @@ struct PreviousVersions: Sendable {
     struct Failure: Error, Equatable { let message: String }
 
     /// Swaps the saved copy back into place. The copy it replaces is kept in its stead, so a restore can be undone.
-    func restore(_ entry: Entry, now: Date = Date(), isRunning: (String) -> Bool = PreviousVersions.isRunning) throws {
+    /// Returns the version that was swapped out, so the caller can skip it.
+    @discardableResult
+    func restore(_ entry: Entry, now: Date = Date(), isRunning: (String) -> Bool = PreviousVersions.isRunning) throws -> String? {
         let fm = FileManager.default
         let installed = URL(filePath: entry.installedPath)
         let saved = savedApp(entry)
@@ -96,12 +98,13 @@ struct PreviousVersions: Sendable {
         }
         guard hadInstalled else {
             try? fm.removeItem(at: folder(for: entry.bundleIdentifier))
-            return
+            return nil
         }
         let replacedVersion = Bundle(url: swap)?.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
         let replaced = InstalledApp(bundleIdentifier: entry.bundleIdentifier, name: entry.name, url: installed,
                                     shortVersion: replacedVersion, buildVersion: nil, sparkleFeedURL: nil, hasAppStoreReceipt: false)
         keep(swap, for: replaced, now: now)
+        return replacedVersion == "?" ? nil : replacedVersion
     }
 
     static func isRunning(_ bundleIdentifier: String) -> Bool {
