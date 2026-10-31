@@ -73,6 +73,10 @@ struct RefreshSettingsView: View {
                         }
                     }
                 }
+                if !store.snoozedUntil.isEmpty {
+                    Button("Show \(store.snoozedUntil.count) snoozed updates now") { store.clearSnoozes() }
+                        .buttonStyle(.link)
+                }
                 if !store.skippedVersions.isEmpty {
                     Button("Show \(store.skippedVersions.count) skipped versions again") {
                         store.clearSkippedVersions()

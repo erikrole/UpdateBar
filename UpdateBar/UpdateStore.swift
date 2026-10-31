@@ -36,6 +36,8 @@ final class UpdateStore {
     var ignoredApps: Set<String>
     var skippedVersions: [String: String]
     var ignoredAppNames: [String: String]
+    /// Apps whose updates are hidden until a date ("Remind me tomorrow").
+    var snoozedUntil: [String: Date]
     /// Apps opted into pre-release (beta) updates.
     var betaApps: Set<String>
     var showsTools: Bool {
@@ -72,6 +74,7 @@ final class UpdateStore {
         static let ignored = "ignoredApps"
         static let ignoredNames = "ignoredAppNames"
         static let skipped = "skippedVersions"
+        static let snoozed = "snoozedUntil"
         static let notified = "notifiedUpdateIDs"
         static let repositories = "githubRepositories"
         static let betaApps = "betaApps"
@@ -97,6 +100,8 @@ final class UpdateStore {
         ignoredApps = Set(defaults.stringArray(forKey: Keys.ignored) ?? [])
         ignoredAppNames = defaults.dictionary(forKey: Keys.ignoredNames) as? [String: String] ?? [:]
         skippedVersions = defaults.dictionary(forKey: Keys.skipped) as? [String: String] ?? [:]
+        snoozedUntil = (defaults.dictionary(forKey: Keys.snoozed) as? [String: Double] ?? [:])
+            .mapValues { Date(timeIntervalSince1970: $0) }
         notifiedUpdateIDs = Set(defaults.stringArray(forKey: Keys.notified) ?? [])
         betaApps = Set(defaults.stringArray(forKey: Keys.betaApps) ?? [])
         showsTools = defaults.object(forKey: Keys.showsTools) as? Bool ?? true
@@ -193,6 +198,33 @@ final class UpdateStore {
         defaults.set(Array(ignoredApps), forKey: Keys.ignored)
         defaults.set(ignoredAppNames, forKey: Keys.ignoredNames)
         UpdateCheckCycle.resolve(self)
+    }
+
+    /// Hides this app's update for `days`, then it comes back on the next check.
+    func snooze(_ row: AppUpdate, days: Int, now: Date = Date()) {
+        snoozedUntil[row.app.bundleIdentifier] = now.addingTimeInterval(TimeInterval(days) * 86_400)
+        saveSnoozes()
+        UpdateCheckCycle.resolve(self)
+    }
+
+    /// Apps still snoozed at `now`; expired entries are dropped.
+    func activeSnoozes(now: Date = Date()) -> Set<String> {
+        let active = snoozedUntil.filter { $0.value > now }
+        if active.count != snoozedUntil.count {
+            snoozedUntil = active
+            saveSnoozes()
+        }
+        return Set(active.keys)
+    }
+
+    func clearSnoozes() {
+        snoozedUntil = [:]
+        saveSnoozes()
+        UpdateCheckCycle.resolve(self)
+    }
+
+    private func saveSnoozes() {
+        defaults.set(snoozedUntil.mapValues(\.timeIntervalSince1970), forKey: Keys.snoozed)
     }
 
     func clearSkippedVersions() {

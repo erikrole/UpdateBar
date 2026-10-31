@@ -320,6 +320,22 @@ final class StoreRegressionTests: XCTestCase {
         return value
     }
 
+    func testSnoozeHidesAnUpdateUntilItExpires() async throws {
+        let defaults = preferences(), result = snapshot()
+        let store = UpdateStore(defaults: defaults, collect: { _, _, _ in result })
+        await store.checkNow(notify: false)
+        let row = try XCTUnwrap(store.rows.first)
+        store.snooze(row, days: 1)
+        XCTAssertTrue(store.rows.isEmpty)
+        // Survives a relaunch, and expires on its own.
+        let relaunched = UpdateStore(defaults: defaults, collect: { _, _, _ in result })
+        XCTAssertEqual(relaunched.activeSnoozes(), ["test.App"])
+        XCTAssertTrue(relaunched.activeSnoozes(now: Date().addingTimeInterval(2 * 86_400)).isEmpty)
+        XCTAssertTrue(relaunched.snoozedUntil.isEmpty, "expired snoozes are dropped")
+        store.clearSnoozes()
+        XCTAssertEqual(store.rows.map(\.id), ["test.App"])
+    }
+
     func testUpdateAllExcludesInteractivePackages() async {
         let result = packageSnapshot(), checks = Counter()
         let refreshed = expectation(description: "refreshed")

@@ -48,7 +48,8 @@ enum UpdateCheckCycle {
             apps: store.installedApps,
             result: store.lastResult,
             ignoredApps: store.ignoredApps,
-            skippedVersions: store.skippedVersions
+            skippedVersions: store.skippedVersions,
+            snoozedApps: store.activeSnoozes()
         )
     }
 

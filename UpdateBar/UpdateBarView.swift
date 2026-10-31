@@ -129,6 +129,7 @@ struct UpdateBarView: View {
                             toggle: { expanded = expanded == row.id ? nil : row.id },
                             perform: { store.perform(row) },
                             skip: { store.skip(row) },
+                            snooze: { store.snooze(row, days: $0) },
                             ignore: { store.ignore(row) }
                         )
                         Divider().padding(.leading, 60)
@@ -249,6 +250,7 @@ private struct UpdateRow: View {
     let toggle: () -> Void
     let perform: () -> Void
     let skip: () -> Void
+    let snooze: (Int) -> Void
     let ignore: () -> Void
 
     var body: some View {
@@ -282,6 +284,8 @@ private struct UpdateRow: View {
             .contentShape(Rectangle())
             .onTapGesture(perform: toggle)
             .contextMenu {
+                Button("Remind Me Tomorrow") { snooze(1) }
+                Button("Remind Me Next Week") { snooze(7) }
                 Button("Skip \(row.update.version)", action: skip)
                 Button("Ignore \(row.app.name)", action: ignore)
                 Divider()
@@ -363,6 +367,7 @@ private struct UpdateRow: View {
                     .foregroundStyle(.secondary)
             }
             HStack {
+                Button("Remind me tomorrow") { snooze(1) }
                 Button("Skip this version", action: skip)
                 Button("Ignore app", action: ignore)
                 if let url = row.update.releaseNotesURL {
