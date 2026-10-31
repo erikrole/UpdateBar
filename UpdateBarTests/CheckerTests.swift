@@ -554,4 +554,10 @@ final class ScannerTests: XCTestCase {
         """
         XCTAssertEqual(PKGInstaller.signerTeamID(in: output), "W5364U7YZB")
     }
+
+    func testHTTPStatusMessagesAreSpecificForRateLimitsAndServerErrors() {
+        XCTAssertTrue(HTTPClient.HTTPError.status(429).localizedDescription.contains("limiting"))
+        XCTAssertTrue(HTTPClient.HTTPError.status(503).localizedDescription.contains("(503)"))
+        XCTAssertEqual(HTTPClient.HTTPError.status(404).localizedDescription, "The server answered 404.")
+    }
 }

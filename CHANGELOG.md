@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Clearer messages when a source rate-limits (403/429) or has a server error (5xx).
+
 ## 0.1.5 - 2026-10-27
 
 - Update all now includes my ZIP-only apps (StatBar, Cutdown, SnipBar, Tweaks, TVBar): their GitHub releases install in place, verified against my Team ID, instead of opening the release page. UpdateBar still updates itself through AppUpdater.

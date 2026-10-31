@@ -387,6 +387,9 @@ struct HTTPClient: Sendable {
         var errorDescription: String? {
             switch self {
             case .insecure: "Its update feed uses plain HTTP, which Refresh won't trust."
+            case .status(429): "The server is limiting requests. Refresh will try again on the next check."
+            case .status(403): "The server refused the request (403), possibly a rate limit. Try again later."
+            case let .status(code) where (500...599).contains(code): "The server had a problem (\(code)). Try again later."
             case let .status(code): "The server answered \(code)."
             }
         }
