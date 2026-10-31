@@ -51,3 +51,31 @@ final class PreviousVersionsTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: store.root.appending(path: "test.Viewer").path))
     }
 }
+
+@MainActor
+final class ScheduledInstallTests: XCTestCase {
+    func testNextFireIsTheComingHourAndLateRunsWait() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "America/Chicago")!
+        let evening = calendar.date(from: DateComponents(year: 2026, month: 10, day: 31, hour: 22))!
+        let fire = ScheduledInstall.nextFire(after: evening, hour: 3, calendar: calendar)
+        XCTAssertEqual(calendar.dateComponents([.day, .hour], from: fire), DateComponents(day: 1, hour: 3))
+        let early = calendar.date(from: DateComponents(year: 2026, month: 11, day: 1, hour: 1))!
+        XCTAssertEqual(calendar.component(.day, from: ScheduledInstall.nextFire(after: early, hour: 3, calendar: calendar)), 1)
+        XCTAssertFalse(ScheduledInstall.isTooLate(fire: fire, now: fire.addingTimeInterval(600)))
+        XCTAssertTrue(ScheduledInstall.isTooLate(fire: fire, now: fire.addingTimeInterval(5 * 3600)))
+    }
+
+    func testTargetsSkipOpenAppsAndInteractiveInstalls() {
+        func row(_ id: String, _ action: UpdateAction) -> AppUpdate {
+            let app = InstalledApp(bundleIdentifier: id, name: id, url: URL(filePath: "/Applications/\(id).app"), shortVersion: "1",
+                                   buildVersion: nil, sparkleFeedURL: nil, hasAppStoreReceipt: false)
+            return AppUpdate(app: app, update: AvailableUpdate(bundleIdentifier: id, source: .homebrew, version: "2", comparableVersion: "2",
+                                                               releaseDate: nil, releaseNotes: nil, releaseNotesURL: nil, downloadURL: nil,
+                                                               action: action), alsoReportedBy: [])
+        }
+        let rows = [row("a", .brewUpgrade(token: "a")), row("open", .sparkleInstall),
+                    row("pkg", .pkgInstall(URL(string: "https://example.com/x.pkg")!)), row("store", .openAppStore)]
+        XCTAssertEqual(ScheduledInstall.targets(rows, isRunning: { $0 == "open" }).map(\.id), ["a"])
+    }
+}

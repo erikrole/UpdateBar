@@ -27,6 +27,15 @@ final class UpdateStore {
     var checkIntervalHours: Int {
         didSet { defaults.set(checkIntervalHours, forKey: Keys.interval); scheduleChecks() }
     }
+    /// Hour (0–23) for the nightly unattended update of apps that aren't open; nil is off.
+    var autoInstallHour: Int? {
+        didSet {
+            defaults.set(autoInstallHour, forKey: Keys.autoInstallHour)
+            scheduleAutoInstall()
+        }
+    }
+    var lastAutoInstall: Date?
+    @ObservationIgnored var autoInstallTask: Task<Void, Never>?
     var notificationsEnabled: Bool {
         didSet {
             defaults.set(notificationsEnabled, forKey: Keys.notifications)
@@ -75,6 +84,7 @@ final class UpdateStore {
         static let ignoredNames = "ignoredAppNames"
         static let skipped = "skippedVersions"
         static let snoozed = "snoozedUntil"
+        static let autoInstallHour = "autoInstallHour"
         static let notified = "notifiedUpdateIDs"
         static let repositories = "githubRepositories"
         static let betaApps = "betaApps"
@@ -97,6 +107,7 @@ final class UpdateStore {
         self.backgroundChecks = backgroundChecks
         checkIntervalHours = defaults.object(forKey: Keys.interval) as? Int ?? 6
         notificationsEnabled = defaults.object(forKey: Keys.notifications) as? Bool ?? true
+        autoInstallHour = (defaults.object(forKey: Keys.autoInstallHour) as? Int).flatMap { (0...23).contains($0) ? $0 : nil }
         ignoredApps = Set(defaults.stringArray(forKey: Keys.ignored) ?? [])
         ignoredAppNames = defaults.dictionary(forKey: Keys.ignoredNames) as? [String: String] ?? [:]
         skippedVersions = defaults.dictionary(forKey: Keys.skipped) as? [String: String] ?? [:]
@@ -162,6 +173,7 @@ final class UpdateStore {
     func start() {
         if notificationsEnabled { UpdateNotifier.requestPermission() }
         scheduleChecks()
+        scheduleAutoInstall()
         PKGInstaller.sweepStaging()
         Task { await checkNow() }
     }

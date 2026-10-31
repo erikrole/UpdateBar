@@ -1,6 +1,11 @@
 import SwiftUI
 
 struct RefreshSettingsView: View {
+    static func hourLabel(_ hour: Int) -> String {
+        let date = Calendar.current.date(bySettingHour: hour, minute: 0, second: 0, of: Date()) ?? Date()
+        return date.formatted(date: .omitted, time: .shortened)
+    }
+
     @AppStorage(SelfUpdate.autoUpdateKey) private var autoUpdate = true
     @Bindable var store: UpdateStore
     @Bindable var launchAtLogin: LaunchAtLoginController
@@ -25,6 +30,20 @@ struct RefreshSettingsView: View {
                     Text("6 hours").tag(6)
                     Text("12 hours").tag(12)
                     Text("Day").tag(24)
+                }
+                Picker("Install updates automatically", selection: $store.autoInstallHour) {
+                    Text("Never").tag(Int?.none)
+                    ForEach([0, 1, 2, 3, 4, 5, 6, 12, 18, 22, 23], id: \.self) { hour in
+                        Text("Daily at \(Self.hourLabel(hour))").tag(Int?.some(hour))
+                    }
+                }
+                if store.autoInstallHour != nil {
+                    Text("Installs updates Refresh can finish on its own (Homebrew, Sparkle and verified downloads) for apps that aren’t open. Open apps and installer packages wait for you. If your Mac is asleep, it waits for the next day.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    if let last = store.lastAutoInstall {
+                        Text("Last ran \(last.formatted(date: .abbreviated, time: .shortened))")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
                 }
             }
 
