@@ -493,6 +493,15 @@ final class ScannerTests: XCTestCase {
         XCTAssertEqual(other.action, .openURL(URL(string: "https://github.com/erikrole/x-releases/releases/v2.0")!))
     }
 
+    func testAppUpdaterHostsDelegateInstallationToTheRunningApp() throws {
+        let json = #"{"tag_name":"v2.0","html_url":"https://github.com/erikrole/fetch-releases/releases/tag/v2.0","draft":false,"prerelease":false,"assets":[{"name":"Fetch.dmg","browser_download_url":"https://github.com/erikrole/fetch-releases/releases/download/v2.0/Fetch.dmg"}]}"#
+        let release = try JSONDecoder().decode(GitHubRelease.self, from: Data(json.utf8))
+        let installed = app("com.erole.Fetch", short: "1.0")
+        let update = try XCTUnwrap(GitHubChecker.update(for: installed, release: release, repository: "erikrole/fetch-releases"))
+        XCTAssertEqual(update.action, .launchApp)
+        XCTAssertEqual(GitHubChecker.repositories(for: app("com.erole.Scratchpad", short: "1.0"), overrides: [:]), ["erikrole/releases"])
+    }
+
     func testOwnZipOnlyReleaseInstallsInPlace() throws {
         let base = "https://github.com/erikrole/x-releases/releases/download/v2.0/"
         let json = #"{"tag_name":"v2.0","html_url":"https://github.com/erikrole/x-releases/releases/v2.0","body":null,"draft":false,"prerelease":false,"published_at":null,"assets":[{"name":"X-2.0-arm64.zip.sha256","browser_download_url":"\#(base)X-2.0-arm64.zip.sha256"},{"name":"X-2.0-arm64.zip","browser_download_url":"\#(base)X-2.0-arm64.zip"}]}"#
