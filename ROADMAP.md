@@ -109,3 +109,5 @@ is separate from successful signing, installation, and GitHub release publicatio
 The previous installed app and release evidence are retained outside the repository.
 
 - October 23: [UpdateBar 0.1.3](https://github.com/erikrole/UpdateBar/releases/tag/v0.1.3) is published with AppUpdater ZIP support. macOS 27, signing, notarization, fresh-extraction Gatekeeper checks, and the public update feed are verified. Installed update/relaunch acceptance remains a separate check.
+
+Refresh shows local version and restart status for AppUpdater hosts, hands their updates back to each app, and can restore a verified unconfirmed backup after the app closes.

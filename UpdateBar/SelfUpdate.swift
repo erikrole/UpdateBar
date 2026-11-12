@@ -8,11 +8,13 @@ enum SelfUpdate {
     static let updater = AppUpdater(.init(
         repository: "erikrole/UpdateBar", assetName: "UpdateBar.zip",
         busyReason: { busyReason() }, postUpdate: .quiet,
-        autoInstall: { UserDefaults.standard.object(forKey: autoUpdateKey) as? Bool ?? true }
+        autoInstall: { UserDefaults.standard.object(forKey: autoUpdateKey) as? Bool ?? true },
+        installOnQuit: { UserDefaults.standard.bool(forKey: installOnQuitKey) }
     ))
 
     /// The Settings switch; on unless turned off.
     nonisolated static let autoUpdateKey = "autoUpdate"
+    nonisolated static let installOnQuitKey = "installUpdatesOnQuit"
 
     static var isPreparing: Bool { updater.isInstalling && !updater.isAwaitingRelaunch }
 

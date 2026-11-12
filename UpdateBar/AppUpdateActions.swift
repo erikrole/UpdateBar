@@ -14,6 +14,10 @@ enum AppUpdateActions {
         case .openAppStore:
             NSWorkspace.shared.open(URL(string: "macappstore://apps.apple.com/updates")!)
         case .launchApp:
+            if row.app.bundleIdentifier == Bundle.main.bundleIdentifier {
+                SelfUpdate.updater.performMenuAction()
+                return
+            }
             let configuration = NSWorkspace.OpenConfiguration()
             configuration.activates = true
             let completion: @Sendable (NSRunningApplication?, (any Error)?) -> Void = { [weak store] _, error in

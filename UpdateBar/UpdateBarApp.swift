@@ -51,6 +51,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         button.imageHugsTitle = true
         button.font = NSFont.systemFont(ofSize: 11, weight: .medium)
         statusItem = item
+        SelfUpdate.updater.hostView = item.button
         updateStatusItem()
     }
 
@@ -112,6 +113,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if !popover.isShown { togglePopover(nil) }
             return .terminateCancel
         }
+        SelfUpdate.updater.applyOnQuitIfReady()
         return .terminateNow
     }
 
