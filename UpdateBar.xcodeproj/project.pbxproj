@@ -354,7 +354,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = YES;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -363,7 +363,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.5;
+				MARKETING_VERSION = 0.1.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.erole.UpdateBar;
 				PRODUCT_NAME = UpdateBar;
 				SDKROOT = macosx;
@@ -539,7 +539,7 @@
 				CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO;
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 8;
+				CURRENT_PROJECT_VERSION = 10;
 				DEVELOPMENT_TEAM = T26T3G8C7Q;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = NO;
@@ -548,7 +548,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.1.5;
+				MARKETING_VERSION = 0.1.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.erole.UpdateBar;
 				PRODUCT_NAME = UpdateBar;
 				SDKROOT = macosx;
@@ -601,7 +601,7 @@
 			repositoryURL = "https://github.com/erikrole/AppUpdater.git";
 			requirement = {
 				kind = revision;
-				revision = be0d006ed0899cc4e661791c41dbc5c23999f261;
+				revision = 3c10ddd4e91de8d6f18b5ac6f244d6f50e857bce;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */

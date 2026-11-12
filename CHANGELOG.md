@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.7
+
+- Show the installed version, last successful check, and pending restart for apps that use AppUpdater.
+- Open those apps to apply updates through their own safety checks.
+- Offer verified recovery for a previous app bundle when an update has yet to confirm startup.
+
+
 ## 0.1.5 - 2026-10-27
 
 - Update all now includes my ZIP-only apps (StatBar, Cutdown, SnipBar, Tweaks, TVBar): their GitHub releases install in place, verified against my Team ID, instead of opening the release page. UpdateBar still updates itself through AppUpdater.

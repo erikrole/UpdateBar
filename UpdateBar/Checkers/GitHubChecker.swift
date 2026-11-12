@@ -1,3 +1,4 @@
+import AppUpdater
 import Foundation
 
 /// Checks GitHub Releases for apps that ship neither Sparkle nor a cask, such as
@@ -10,6 +11,10 @@ struct GitHubChecker: UpdateChecker {
 
     static let automaticPrefix = "com.erole."
     static let automaticOwner = "erikrole"
+    static let selfUpdatingApps: Set<String> = [
+        "com.erole.Fetch", "com.erole.Offload", "com.erole.Scratchpad", "com.erole.Cutdown",
+        "com.erole.SnipBar", "com.erole.StatBar", "com.erole.TVBar", "com.erole.Tweaks", "com.erole.UpdateBar",
+    ]
 
     func check(_ apps: [InstalledApp]) async -> CheckerResult {
         let linked: [(InstalledApp, [String])] = apps.compactMap { app in
@@ -37,6 +42,7 @@ struct GitHubChecker: UpdateChecker {
         if let repo = overrides[app.bundleIdentifier]?.trimmingCharacters(in: .whitespaces), repo.contains("/") {
             return [repo]
         }
+        if app.bundleIdentifier == "com.erole.Scratchpad" { return ["erikrole/releases"] }
         guard let repo = automaticRepository(for: app) else { return [] }
         let name = String(repo.dropFirst(automaticOwner.count + 1))
         return [repo, "\(automaticOwner)/\(name.lowercased())-releases"]
@@ -52,13 +58,29 @@ struct GitHubChecker: UpdateChecker {
     /// nil when the repository has no published release (or doesn't exist), so the next candidate can be tried.
     private static func check(_ app: InstalledApp, repository: String, client: HTTPClient) async -> CheckerResult? {
         var result = CheckerResult()
-        guard let url = URL(string: "https://api.github.com/repos/\(repository)/releases/latest") else { return nil }
+        let isScratchpadFeed = app.bundleIdentifier == "com.erole.Scratchpad" && repository == "erikrole/releases"
+        let endpoint = isScratchpadFeed ? "releases?per_page=100" : "releases/latest"
+        guard let url = URL(string: "https://api.github.com/repos/\(repository)/\(endpoint)") else { return nil }
         do {
             let (data, response) = try await client.data(from: url, headers: ["Accept": "application/vnd.github+json"])
             switch response.statusCode {
             case 200..<300: break
             case 404: return nil // No published release here; nothing to say.
             default: throw HTTPClient.HTTPError.status(response.statusCode)
+            }
+            if isScratchpadFeed {
+                guard let release = ReleaseInfo.newest(inList: data, assetName: "Scratchpad.zip",
+                                                       allowPrerelease: false, tagPrefix: "scratchpad-") else {
+                    return result
+                }
+                result.cover(app.bundleIdentifier, by: .github)
+                if ReleaseInfo.isNewer(release.version, than: app.displayVersion) {
+                    result.updates.append(AvailableUpdate(bundleIdentifier: app.bundleIdentifier, source: .github,
+                        version: release.version, comparableVersion: release.version, releaseDate: release.date,
+                        releaseNotes: release.notes, releaseNotesURL: release.pageURL, downloadURL: release.downloadURL,
+                        action: .launchApp))
+                }
+                return result
             }
             let release = try autoreleasepool { try JSONDecoder.iso8601.decode(GitHubRelease.self, from: data) }
             result.cover(app.bundleIdentifier, by: .github)
@@ -85,6 +107,14 @@ struct GitHubChecker: UpdateChecker {
                 return name.hasSuffix(".zip") && !name.hasPrefix("fetch-") && !name.contains("-cli") && !name.contains("extension")
             }
         let ownRelease = repository?.hasPrefix(automaticOwner + "/") == true
+        let action: UpdateAction
+        if selfUpdatingApps.contains(app.bundleIdentifier) {
+            action = .launchApp
+        } else if ownRelease, let installable {
+            action = .dmgInstall(installable.downloadURL)
+        } else {
+            action = .openURL(release.htmlURL)
+        }
         return AvailableUpdate(
             bundleIdentifier: app.bundleIdentifier,
             source: .github,
@@ -94,7 +124,7 @@ struct GitHubChecker: UpdateChecker {
             releaseNotes: release.body?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
             releaseNotesURL: release.htmlURL,
             downloadURL: asset?.downloadURL,
-            action: ownRelease && app.bundleIdentifier != Bundle.main.bundleIdentifier && installable != nil ? .dmgInstall(installable!.downloadURL) : .openURL(release.htmlURL)
+            action: action
         )
     }
 }
