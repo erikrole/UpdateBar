@@ -17,3 +17,7 @@ xcuserdata/
 # Test and coverage artifacts
 *.xccovarchive
 *.xcresult
+
+# Claude Code: keep local settings out, track shared skills.
+.claude/*
+!.claude/skills/
