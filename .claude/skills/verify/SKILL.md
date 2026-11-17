@@ -109,6 +109,19 @@ survive it, so delete the domain first. Diff before relaunching, because the ins
 rewrites `AppUpdater.lastCheck` on start. Then, only if it was running in step 0:
 `open -a /Applications/UpdateBar.app` (full path, so LaunchServices can't pick a debug copy).
 
+Check that no Login Item points at this checkout (a dry run on 2026-11-17 left debug builds
+registered, and they launched instead of the installed apps after a restart):
+
+```bash
+sfltool dumpbtm 2>/dev/null | grep -c "URL: .*${PWD#$HOME}/"   # want 0 (BTM shows /Users/<uid>/..., not $HOME, so match the tail)
+```
+
+If it isn't 0: quit your copy by PID, then open `/Applications/UpdateBar.app` (it re-registers under the same
+bundle ID, which moves the entry back to /Applications) and recheck. If the entry still points here
+(an unsigned debug build registers without a bundle ID), unregister and delete this build's `.app`
+(build output) so it can't launch at login, and tell Erik to remove the stale entry in System Settings >
+General > Login Items.
+
 ## 5. Report the evidence
 
 In the commit message, add one trailer line:
