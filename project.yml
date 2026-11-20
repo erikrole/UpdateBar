@@ -10,7 +10,7 @@ settings:
     DEVELOPMENT_TEAM: ""
 packages:
   AppUpdater:
-    url: https://github.com/erikrole/AppUpdater.git
+    url: https://github.com/erikrole/app-updater.git
     revision: e40e410da1362a5fd4b88f5b479b34af9c530d5b
   Sparkle:
     url: https://github.com/sparkle-project/Sparkle
