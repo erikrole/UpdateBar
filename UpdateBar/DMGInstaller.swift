@@ -62,7 +62,9 @@ enum DMGInstaller {
             try fm.createDirectory(at: mountPoint, withIntermediateDirectories: true)
             if isZip {
                 progress("Unpacking…")
-                try await run("/usr/bin/ditto", ["-x", "-k", archive.path, mountPoint.path])
+                try await run("/usr/bin/bsdtar", ["-xf", archive.path, "-C", mountPoint.path,
+                    "--safe-writes", "--no-same-owner", "--no-acls", "--no-fflags"])
+                try validateExtractedContents(in: mountPoint)
             } else {
                 progress("Mounting…")
                 try await run("/usr/bin/hdiutil", ["attach", archive.path, "-nobrowse", "-readonly", "-noverify", "-mountpoint", mountPoint.path])
@@ -72,6 +74,12 @@ enum DMGInstaller {
             guard let source = findApp(in: mountPoint, named: destination.lastPathComponent) else {
                 await release()
                 throw Failure(message: "The download doesn't contain an app.")
+            }
+            do {
+                try validateExtractedContents(in: source)
+            } catch {
+                await release()
+                throw error
             }
 
             progress("Verifying signature…")
@@ -144,6 +152,41 @@ enum DMGInstaller {
             }
         }
         return found.first { $0.lastPathComponent == name } ?? found.first
+    }
+
+    /// Reject symlinks escaping `directory`, hard links, and special device/FIFO nodes before copying or verifying.
+    nonisolated static func validateExtractedContents(in directory: URL) throws {
+        let root = directory.resolvingSymlinksInPath().standardizedFileURL
+        let fm = FileManager.default
+        var pending = [(directory, 0)]
+        var count = 0
+        while let (item, depth) = pending.popLast() {
+            count += 1
+            guard depth <= 64, count <= 100_000 else {
+                throw Failure(message: "The update contains too many nested files.")
+            }
+            var info = stat()
+            guard lstat(item.path, &info) == 0 else {
+                throw Failure(message: "Couldn't inspect the downloaded update.")
+            }
+            switch info.st_mode & mode_t(S_IFMT) {
+            case mode_t(S_IFDIR):
+                let children = (try? fm.contentsOfDirectory(at: item, includingPropertiesForKeys: nil)) ?? []
+                pending += children.map { ($0, depth + 1) }
+            case mode_t(S_IFREG):
+                guard info.st_nlink == 1 else {
+                    throw Failure(message: "The update contains an unsafe hard link.")
+                }
+            case mode_t(S_IFLNK):
+                let target = try fm.destinationOfSymbolicLink(atPath: item.path)
+                let resolved = item.deletingLastPathComponent().appending(path: target).standardizedFileURL.resolvingSymlinksInPath()
+                guard !target.hasPrefix("/"), resolved.path == root.path || resolved.path.hasPrefix(root.path + "/") else {
+                    throw Failure(message: "The update contains a symbolic link outside the app.")
+                }
+            default:
+                throw Failure(message: "The update contains an unsupported file type.")
+            }
+        }
     }
 
     /// The Team ID the installed app is signed with, if any.

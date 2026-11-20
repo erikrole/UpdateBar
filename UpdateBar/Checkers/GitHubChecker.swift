@@ -56,7 +56,7 @@ struct GitHubChecker: UpdateChecker {
     }
 
     /// nil when the repository has no published release (or doesn't exist), so the next candidate can be tried.
-    private static func check(_ app: InstalledApp, repository: String, client: HTTPClient) async -> CheckerResult? {
+    static func check(_ app: InstalledApp, repository: String, client: HTTPClient) async -> CheckerResult? {
         var result = CheckerResult()
         let isScratchpadFeed = app.bundleIdentifier == "com.erole.Scratchpad" && repository == "erikrole/releases"
         let endpoint = isScratchpadFeed ? "releases?per_page=100" : "releases/latest"
@@ -66,6 +66,11 @@ struct GitHubChecker: UpdateChecker {
             switch response.statusCode {
             case 200..<300: break
             case 404: return nil // No published release here; nothing to say.
+            case 403, 429:
+                if let fallback = await fallbackOnRateLimit(for: app, repository: repository, isScratchpadFeed: isScratchpadFeed, client: client) {
+                    return fallback
+                }
+                throw HTTPClient.HTTPError.status(response.statusCode)
             default: throw HTTPClient.HTTPError.status(response.statusCode)
             }
             if isScratchpadFeed {
@@ -77,7 +82,7 @@ struct GitHubChecker: UpdateChecker {
                 if ReleaseInfo.isNewer(release.version, than: app.displayVersion) {
                     result.updates.append(AvailableUpdate(bundleIdentifier: app.bundleIdentifier, source: .github,
                         version: release.version, comparableVersion: release.version, releaseDate: release.date,
-                        releaseNotes: release.notes, releaseNotesURL: release.pageURL, downloadURL: release.downloadURL,
+                        releaseNotes: release.notes.nilIfEmpty, releaseNotesURL: release.pageURL, downloadURL: release.downloadURL,
                         action: .launchApp))
                 }
                 return result
@@ -89,6 +94,59 @@ struct GitHubChecker: UpdateChecker {
             result.failures.append(CheckFailure(source: .github, subject: app.name, message: error.localizedDescription))
         }
         return result
+    }
+
+    private static func fallbackOnRateLimit(
+        for app: InstalledApp,
+        repository: String,
+        isScratchpadFeed: Bool,
+        client: HTTPClient
+    ) async -> CheckerResult? {
+        if isScratchpadFeed,
+           let feedURL = URL(string: "https://raw.githubusercontent.com/erikrole/releases/main/feeds/scratchpad.json"),
+           let (feedData, feedResponse) = try? await client.data(from: feedURL),
+           (200..<300).contains(feedResponse.statusCode),
+           let release = ReleaseInfo.newest(inList: feedData, assetName: "Scratchpad.zip", allowPrerelease: false, tagPrefix: "scratchpad-") {
+            var result = CheckerResult()
+            result.cover(app.bundleIdentifier, by: .github)
+            if ReleaseInfo.isNewer(release.version, than: app.displayVersion) {
+                result.updates.append(AvailableUpdate(bundleIdentifier: app.bundleIdentifier, source: .github,
+                    version: release.version, comparableVersion: release.version, releaseDate: release.date,
+                    releaseNotes: release.notes.nilIfEmpty, releaseNotesURL: release.pageURL, downloadURL: release.downloadURL,
+                    action: .launchApp))
+            }
+            return result
+        }
+        if !isScratchpadFeed,
+           let latestURL = URL(string: "https://github.com/\(repository)/releases/latest"),
+           let (_, response) = try? await client.head(from: latestURL),
+           (200..<300).contains(response.statusCode),
+           let page = response.url,
+           page.host == "github.com",
+           page.pathComponents.count == 6,
+           page.pathComponents[3] == "releases",
+           page.pathComponents[4] == "tag" {
+            let tag = page.lastPathComponent
+            let release = GitHubRelease(tagName: tag, htmlURL: page, body: nil, draft: false, prerelease: false, publishedAt: nil, assets: [])
+            var result = CheckerResult()
+            result.cover(app.bundleIdentifier, by: .github)
+            if let update = update(for: app, release: release, repository: repository) { result.updates.append(update) }
+            return result
+        }
+        if selfUpdatingApps.contains(app.bundleIdentifier),
+           let status = AppUpdater.Status.read(bundleIdentifier: app.bundleIdentifier),
+           status.installedVersion == app.displayVersion {
+            var result = CheckerResult()
+            result.cover(app.bundleIdentifier, by: .github)
+            if VersionComparator.isNewer(status.latestVersion, than: app.displayVersion) {
+                let page = URL(string: "https://github.com/\(repository)/releases")
+                result.updates.append(AvailableUpdate(bundleIdentifier: app.bundleIdentifier, source: .github,
+                    version: status.latestVersion, comparableVersion: status.latestVersion, releaseDate: nil,
+                    releaseNotes: nil, releaseNotesURL: page, downloadURL: nil, action: .launchApp))
+            }
+            return result
+        }
+        return nil
     }
 
     static func update(for app: InstalledApp, release: GitHubRelease, repository: String? = nil) -> AvailableUpdate? {

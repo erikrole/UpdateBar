@@ -403,6 +403,40 @@ final class GitHubTests: XCTestCase {
         XCTAssertNil(GitHubChecker.update(for: installed, release: draft))
         XCTAssertNil(GitHubChecker.update(for: installed, release: preview))
     }
+
+    func testRateLimitFallsBackToLatestRedirect() async throws {
+        final class RateLimitProtocol: URLProtocol, @unchecked Sendable {
+            override class func canInit(with request: URLRequest) -> Bool { true }
+            override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+            override func startLoading() {
+                let url = request.url!
+                if url.host == "api.github.com" {
+                    let response = HTTPURLResponse(url: url, statusCode: 403, httpVersion: nil, headerFields: nil)!
+                    client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+                    client?.urlProtocol(self, didLoad: Data())
+                    client?.urlProtocolDidFinishLoading(self)
+                } else {
+                    let page = URL(string: "https://github.com/erikrole/Fetch/releases/tag/v2.1.0")!
+                    let response = HTTPURLResponse(url: page, statusCode: 200, httpVersion: nil, headerFields: nil)!
+                    client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+                    client?.urlProtocol(self, didLoad: Data())
+                    client?.urlProtocolDidFinishLoading(self)
+                }
+            }
+            override func stopLoading() {}
+        }
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [RateLimitProtocol.self]
+        let client = HTTPClient(session: URLSession(configuration: config))
+        let installed = app("com.erole.Fetch", short: "2.0.6")
+        let checked = await GitHubChecker.check(installed, repository: "erikrole/Fetch", client: client)
+        let result = try XCTUnwrap(checked)
+        XCTAssertTrue(result.failures.isEmpty)
+        XCTAssertTrue(result.isCovered("com.erole.Fetch", by: .github))
+        XCTAssertEqual(result.updates.first?.version, "2.1.0")
+        XCTAssertEqual(result.updates.first?.action, .launchApp)
+    }
 }
 
 final class ResolverTests: XCTestCase {
@@ -562,5 +596,43 @@ final class ScannerTests: XCTestCase {
             3. Apple Root CA
         """
         XCTAssertEqual(PKGInstaller.signerTeamID(in: output), "W5364U7YZB")
+    }
+
+    func testHTTPStatusMessagesAreSpecificForRateLimitsAndServerErrors() {
+        XCTAssertTrue(HTTPClient.HTTPError.status(429).localizedDescription.contains("limiting"))
+        XCTAssertTrue(HTTPClient.HTTPError.status(403).localizedDescription.contains("403"))
+        XCTAssertTrue(HTTPClient.HTTPError.status(503).localizedDescription.contains("(503)"))
+        XCTAssertEqual(HTTPClient.HTTPError.status(404).localizedDescription, "The server answered 404.")
+    }
+
+    func testDMGInstallerRejectsEscapingSymlinksAndHardlinks() throws {
+        let fm = FileManager.default
+        let root = fm.temporaryDirectory.appending(path: "UpdateBarZipSafety-\(UUID().uuidString)")
+        let outside = fm.temporaryDirectory.appending(path: "UpdateBarOutside-\(UUID().uuidString).txt")
+        try fm.createDirectory(at: root, withIntermediateDirectories: true)
+        try Data("secret".utf8).write(to: outside)
+        defer {
+            try? fm.removeItem(at: root)
+            try? fm.removeItem(at: outside)
+        }
+
+        // Valid internal file and relative internal symlink pass.
+        let inner = root.appending(path: "App.app/Contents")
+        try fm.createDirectory(at: inner, withIntermediateDirectories: true)
+        let target = inner.appending(path: "Info.plist")
+        try Data("ok".utf8).write(to: target)
+        try fm.createSymbolicLink(atPath: inner.appending(path: "Link.plist").path, withDestinationPath: "Info.plist")
+        XCTAssertNoThrow(try DMGInstaller.validateExtractedContents(in: root))
+
+        // Escaping symlink fails.
+        let escape = inner.appending(path: "Escape.txt")
+        try fm.createSymbolicLink(atPath: escape.path, withDestinationPath: "../../../\(outside.lastPathComponent)")
+        XCTAssertThrowsError(try DMGInstaller.validateExtractedContents(in: root))
+        try fm.removeItem(at: escape)
+
+        // Hardlink fails.
+        let hard = inner.appending(path: "Hard.plist")
+        try fm.linkItem(at: target, to: hard)
+        XCTAssertThrowsError(try DMGInstaller.validateExtractedContents(in: root))
     }
 }

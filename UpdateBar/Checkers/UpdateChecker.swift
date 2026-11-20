@@ -387,6 +387,9 @@ struct HTTPClient: Sendable {
         var errorDescription: String? {
             switch self {
             case .insecure: "Its update feed uses plain HTTP, which Refresh won't trust."
+            case .status(429): "The server is limiting requests. Refresh will try again on the next check."
+            case .status(403): "The server refused the request (403), possibly a rate limit. Try again later."
+            case let .status(code) where (500...599).contains(code): "The server had a problem (\(code)). Try again later."
             case let .status(code): "The server answered \(code)."
             }
         }
@@ -395,6 +398,14 @@ struct HTTPClient: Sendable {
     /// Fetches `url`, upgrading plain HTTP to HTTPS. Feeds that only work over HTTP
     /// are reported rather than trusted, since their download links could be tampered with.
     func data(from url: URL, headers: [String: String] = [:]) async throws -> (Data, HTTPURLResponse) {
+        try await request(from: url, method: "GET", headers: headers)
+    }
+
+    func head(from url: URL, headers: [String: String] = [:]) async throws -> (Data, HTTPURLResponse) {
+        try await request(from: url, method: "HEAD", headers: headers)
+    }
+
+    private func request(from url: URL, method: String, headers: [String: String]) async throws -> (Data, HTTPURLResponse) {
         var target = url
         if url.scheme?.lowercased() == "http" {
             var components = URLComponents(url: url, resolvingAgainstBaseURL: false)
@@ -404,6 +415,7 @@ struct HTTPClient: Sendable {
         }
         guard target.scheme?.lowercased() == "https", target.host != nil else { throw HTTPError.insecure(url) }
         var request = URLRequest(url: target)
+        request.httpMethod = method
         for (field, value) in headers { request.setValue(value, forHTTPHeaderField: field) }
         do {
             let (data, response) = try await session.data(for: request)
@@ -432,7 +444,16 @@ final class HTTPSRedirectDelegate: NSObject, URLSessionTaskDelegate {
                     willPerformHTTPRedirection response: HTTPURLResponse,
                     newRequest request: URLRequest,
                     completionHandler: @escaping @Sendable (URLRequest?) -> Void) {
-        completionHandler(request.url?.scheme?.lowercased() == "https" ? request : nil)
+        guard request.url?.scheme?.lowercased() == "https" else {
+            completionHandler(nil)
+            return
+        }
+        var redirected = request
+        if task.originalRequest?.httpMethod == "HEAD" {
+            redirected.httpMethod = "HEAD"
+            redirected.httpBody = nil
+        }
+        completionHandler(redirected)
     }
 }
 

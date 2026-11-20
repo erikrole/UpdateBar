@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Pin AppUpdater to `e40e410` and reflect live self-update status in Settings and popover Quit state.
+- Fall back to per-app stable feeds, public `/releases/latest` HEAD redirects, or local `AppUpdater.Status` when GitHub's anonymous API returns HTTP 403/429, and show clearer 403/429/5xx failure messages.
+- Extract third-party ZIP casks with `bsdtar` and validate against escaping symlinks, hard links, and unsupported file types before staging.
+- Refresh Login Item status when Settings appears or activates, and add an "Open Login Items Settings…" button when approval is needed.
+- Clear delivered update notifications once updates are installed or no updates remain.
+
 ## 0.1.7
 
 - Show the installed version, last successful check, and pending restart for apps that use AppUpdater.

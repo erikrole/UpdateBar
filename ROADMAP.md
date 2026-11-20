@@ -111,3 +111,5 @@ The previous installed app and release evidence are retained outside the reposit
 - October 23: [UpdateBar 0.1.3](https://github.com/erikrole/UpdateBar/releases/tag/v0.1.3) is published with AppUpdater ZIP support. macOS 27, signing, notarization, fresh-extraction Gatekeeper checks, and the public update feed are verified. Installed update/relaunch acceptance remains a separate check.
 
 Refresh shows local version and restart status for AppUpdater hosts, hands their updates back to each app, and can restore a verified unconfirmed backup after the app closes.
+
+- November 20 audit pass: pinned AppUpdater `e40e410`, added GitHub API 403/429 rate-limit fallbacks and clearer 403/429/5xx error copy, hardened third-party ZIP extraction with `bsdtar` + symlink/hardlink validation, wired live Login Item approval refresh/settings button, guarded Quit during self-update preparation, and cleared delivered notifications after installs.

@@ -10,16 +10,26 @@ enum UpdateNotifier {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge]) { _, _ in }
     }
 
+    static func clearDeliveredNotifications() {
+        guard !isRunningTests else { return }
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+    }
+
     static func notifyAboutNewUpdates(_ store: UpdateStore) {
         let pending: [(id: String, name: String)] = store.rows.map { ($0.update.id, $0.app.name) }
             + store.newReleaseTools.map { ($0.notificationID, $0.name) }
         let freshTools = store.newReleaseTools.filter { !store.notifiedUpdateIDs.contains($0.notificationID) }
         let fresh = store.rows.filter { !store.notifiedUpdateIDs.contains($0.update.id) }
         let pendingIDs = Set(pending.map(\.id))
+        let hadPriorNotifications = !store.notifiedUpdateIDs.isEmpty
         store.notifiedUpdateIDs.formUnion(pendingIDs)
         // Keep the memory small: only IDs still pending matter.
         store.notifiedUpdateIDs.formIntersection(pendingIDs)
         store.defaults.set(Array(store.notifiedUpdateIDs), forKey: UpdateStore.Keys.notified)
+
+        if pendingIDs.isEmpty, hadPriorNotifications, !isRunningTests {
+            UNUserNotificationCenter.current().removeAllDeliveredNotifications()
+        }
 
         let freshCount = fresh.count + freshTools.count
         guard store.notificationsEnabled, freshCount > 0, !isRunningTests else { return }

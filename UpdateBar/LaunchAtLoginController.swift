@@ -53,6 +53,11 @@ final class LaunchAtLoginController {
 
     func refresh() {
         status = service.status
+        if status == .enabled {
+            errorMessage = nil
+        } else if status == .requiresApproval, errorMessage == nil {
+            errorMessage = "Refresh needs approval in Login Items."
+        }
     }
 
     func openSettings() {

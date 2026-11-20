@@ -102,6 +102,7 @@ enum AppUpdateActions {
                     ? "Opened in Installer. Finish the installation there, then check again."
                     : "Updated \(targets.count) app\(targets.count == 1 ? "" : "s")"
                 store.banner = UpdateStore.Banner(text: text, isWarning: false)
+                UpdateNotifier.clearDeliveredNotifications()
             } else {
                 let updated = targets.count - failed.count
                 let names = failed.joined(separator: ", ")

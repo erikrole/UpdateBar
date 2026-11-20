@@ -22,6 +22,12 @@ struct RefreshSettingsView: View {
                 if let error = launchAtLogin.errorMessage {
                     Text(error).font(.caption).foregroundStyle(.secondary)
                 }
+                if launchAtLogin.requiresApproval {
+                    Button("Open Login Items Settings…") {
+                        launchAtLogin.openSettings()
+                    }
+                    .controlSize(.small)
+                }
                 Toggle("Notify me about new updates", isOn: $store.notificationsEnabled)
                 Picker("Check every", selection: $store.checkIntervalHours) {
                     Text("Hour").tag(1)
@@ -60,7 +66,7 @@ struct RefreshSettingsView: View {
             Section("Refresh updates") {
                 Toggle("Download Refresh updates automatically", isOn: $autoUpdate)
                 Toggle("Install Refresh updates on quit", isOn: $installOnQuit)
-                Button(SelfUpdate.updater.menuTitle ?? "Check for Refresh Updates…") { SelfUpdate.updater.performMenuAction() }
+                Button(SelfUpdate.menuState.title) { SelfUpdate.updater.performMenuAction() }
             }
 
             if !managedApps.isEmpty {
@@ -108,6 +114,10 @@ struct RefreshSettingsView: View {
         }
         .formStyle(.grouped)
         .frame(width: 480, height: 540)
+        .onAppear { launchAtLogin.refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            launchAtLogin.refresh()
+        }
     }
 
     private var managedApps: [InstalledApp] {

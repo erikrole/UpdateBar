@@ -47,6 +47,7 @@ enum ToolUpgradeActions {
                 let notice = names.count == 1 ? "Upgraded \(names[0])" : "Upgraded \(names.count) tools"
                 let shown = UpdateStore.Banner(text: notice, isWarning: false)
                 store.banner = shown
+                UpdateNotifier.clearDeliveredNotifications()
                 Task {
                     try? await Task.sleep(for: .seconds(30))
                     if store.banner == shown { store.banner = nil }

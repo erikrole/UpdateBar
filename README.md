@@ -135,7 +135,7 @@ Refresh is released under the MIT License.
 
 AppUpdater checks [erikrole/UpdateBar](https://github.com/erikrole/UpdateBar/releases) for signed ZIP releases. Normal Release launches check automatically; tests and helper/command launches skip automatic checks. Use **Check for Refresh Updates…** in Settings > Refresh.
 
-`project.yml` pins the public [AppUpdater](https://github.com/erikrole/AppUpdater) package to `9ada219929d278da23a003382ed599d4590f78ec`; rerun XcodeGen after changing the pin. Keep package resolution checked in. App and package targets require **macOS 27**. The host retains its save and busy checks during updater relaunch; no forced-exit fallback is configured.
+`project.yml` pins the public [AppUpdater](https://github.com/erikrole/AppUpdater) package to `e40e410da1362a5fd4b88f5b479b34af9c530d5b`; rerun XcodeGen after changing the pin. Keep package resolution checked in. App and package targets require **macOS 27**. The host retains its save and busy checks during updater relaunch; no forced-exit fallback is configured.
 
 Published on October 23, 2026 as [UpdateBar 0.1.3](https://github.com/erikrole/UpdateBar/releases/tag/v0.1.3), build 5, from source `5675bd0287983d492af9548a4a1cadf39ed0556e`. The Apple Silicon ZIP requires macOS 27 or later and is Developer ID signed, notarized, and stapled. A SHA-256 checksum and provenance manifest are attached to the release.
 

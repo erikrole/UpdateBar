@@ -84,8 +84,8 @@ struct UpdateBarView: View {
             Button("Quit") { NSApp.terminate(nil) }
                 .buttonStyle(.borderless)
                 .foregroundStyle(.secondary)
-                .disabled(!store.runningActions.isEmpty)
-                .help(store.runningActions.isEmpty ? "Quit Refresh" : "Wait for the current update to finish")
+                .disabled(!store.runningActions.isEmpty || SelfUpdate.isPreparing)
+                .help(store.runningActions.isEmpty && !SelfUpdate.isPreparing ? "Quit Refresh" : "Wait for the current update to finish")
                 .keyboardShortcut("q")
         }
         .controlSize(.small)
